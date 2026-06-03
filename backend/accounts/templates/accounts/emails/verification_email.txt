@@ -1,0 +1,14 @@
+Verify Your Email Address
+=========================
+
+Hello {{ user.username }},
+
+Thank you for signing up for ViralOps! Please verify your email address to activate your account and access your workspaces.
+
+Verify your email by clicking the link below or copying it into your browser:
+{{ verification_url }}
+
+If you did not create a ViralOps account, you can safely ignore this email.
+
+--
+ViralOps Team

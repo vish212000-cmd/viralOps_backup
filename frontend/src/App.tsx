@@ -13,6 +13,10 @@ const Billing = lazy(() => import('./pages/Billing'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const Policies = lazy(() => import('./pages/Policies'));
 const GoogleCallback = lazy(() => import('./pages/GoogleCallback'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const AcceptInvite = lazy(() => import('./pages/AcceptInvite'));
 
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './context/AuthContext';
@@ -44,6 +48,12 @@ function App() {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                
+                {/* Email verification and password recovery routes */}
+                <Route path="/verify-email" element={<VerifyEmail />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/accept-invite" element={<AcceptInvite />} />
                 
                 {/* Social Login and Public Policy routes */}
                 <Route path="/auth/google/callback" element={<GoogleCallback />} />

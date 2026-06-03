@@ -1,0 +1,14 @@
+Workspace Invitation
+====================
+
+Hello,
+
+You have been invited by {{ invited_by.username }} to join the {{ organization.name }} workspace on ViralOps with the role of {{ role }}.
+
+Click the link below or copy it into your browser to accept this invitation:
+{{ invite_url }}
+
+If you do not have a ViralOps account yet, you will be prompted to create one first to access the workspace.
+
+--
+ViralOps Team

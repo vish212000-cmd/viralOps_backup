@@ -1,10 +1,11 @@
-from rest_framework import status, viewsets, permissions, decorators
+from rest_framework import status, viewsets, permissions, decorators, views
 from rest_framework.response import Response
 from django.utils.text import slugify
 from django.shortcuts import get_object_or_404
-from .models import Organization, Membership
+from .models import Organization, Membership, WorkspaceInvite
 from projects.serializers import OrganizationSerializer, MembershipSerializer
 from projects.models import AuditLog
+from accounts.views import send_invite_email
 
 class OrganizationViewSet(viewsets.ModelViewSet):
     queryset = Organization.objects.all()
@@ -78,3 +79,92 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             
             serializer = MembershipSerializer(membership)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @decorators.action(detail=True, methods=['post'])
+    def invite(self, request, pk=None):
+        org = self.get_object()
+        
+        # Verify request user is ADMIN or SUPER_ADMIN
+        user_membership = get_object_or_404(Membership, user=request.user, organization=org)
+        if user_membership.role not in ['ADMIN', 'SUPER_ADMIN'] and not request.user.is_superuser:
+            return Response({'detail': 'Only admins can invite members.'}, status=status.HTTP_403_FORBIDDEN)
+            
+        email = request.data.get('email')
+        role = request.data.get('role', 'MEMBER')
+        
+        if not email:
+            return Response({'email': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if role not in [r[0] for r in Membership.ROLE_CHOICES]:
+            return Response({'role': 'Invalid role choice.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        invite, created = WorkspaceInvite.objects.update_or_create(
+            organization=org,
+            email=email.strip().lower(),
+            defaults={'role': role, 'invited_by': request.user, 'accepted': False}
+        )
+        
+        try:
+            send_invite_email(invite)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send invite email to {email}: {str(e)}")
+            
+        AuditLog.objects.create(
+            organization=org,
+            user=request.user,
+            action="MEMBER_INVITE_SENT",
+            details={"invited_email": email, "role": role}
+        )
+        
+        return Response({'message': 'Invitation sent successfully.'}, status=status.HTTP_201_CREATED)
+
+class AcceptWorkspaceInviteView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        token = request.data.get('token')
+        if not token:
+            return Response({'error': 'Token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            invite = WorkspaceInvite.objects.get(id=token, accepted=False)
+            
+            # Enforce matching emails
+            if request.user.email.strip().lower() != invite.email.strip().lower():
+                return Response(
+                    {'error': f'This invitation was sent to {invite.email}. Please use the correct email address.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            membership, created = Membership.objects.get_or_create(
+                user=request.user,
+                organization=invite.organization,
+                defaults={'role': invite.role}
+            )
+            if not created:
+                membership.role = invite.role
+                membership.save()
+                
+            invite.accepted = True
+            invite.save()
+            
+            AuditLog.objects.create(
+                organization=invite.organization,
+                user=request.user,
+                action="WORKSPACE_INVITE_ACCEPTED",
+                details={"user": request.user.username, "role": invite.role}
+            )
+            
+            return Response({
+                'message': 'Invitation accepted successfully.',
+                'organization': {
+                    'id': invite.organization.id,
+                    'name': invite.organization.name,
+                    'slug': invite.organization.slug
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except (WorkspaceInvite.DoesNotExist, ValueError):
+            return Response({'error': 'Invalid or expired invitation token.'}, status=status.HTTP_400_BAD_REQUEST)

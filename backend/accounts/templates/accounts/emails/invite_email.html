@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>You've been invited to a workspace</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #0f172a;
+      color: #e2e8f0;
+      margin: 0;
+      padding: 0;
+    }
+    .wrapper {
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #1e293b;
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+      border: 1px solid #334155;
+    }
+    h1 {
+      color: #f8fafc;
+      font-size: 24px;
+      font-weight: 700;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    p {
+      color: #94a3b8;
+      font-size: 16px;
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+    .btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #ffffff !important;
+      text-decoration: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 16px;
+      text-align: center;
+      box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+    }
+    .footer {
+      margin-top: 32px;
+      border-top: 1px solid #334155;
+      padding-top: 16px;
+      font-size: 12px;
+      color: #64748b;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <h1>Workspace Invitation</h1>
+      <p>Hello,</p>
+      <p>You have been invited by <strong>{{ invited_by.username }}</strong> to join the <strong>{{ organization.name }}</strong> workspace on ViralOps with the role of <strong>{{ role }}</strong>.</p>
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="{{ invite_url }}" class="btn" target="_blank">Accept Invitation</a>
+      </div>
+      <p>If the button above does not work, copy and paste the following link into your web browser:</p>
+      <p style="word-break: break-all;"><a href="{{ invite_url }}" style="color: #10b981;">{{ invite_url }}</a></p>
+      <p>This invitation will add your email to the workspace. If you do not have a ViralOps account yet, you will be prompted to create one first.</p>
+      <div class="footer">
+        &copy; 2026 ViralOps. All rights reserved.
+      </div>
+    </div>
+  </div>
+</body>
+</html>

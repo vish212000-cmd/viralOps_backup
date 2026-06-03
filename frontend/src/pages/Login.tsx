@@ -81,8 +81,13 @@ export default function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            placeholder="Enter your password"
           />
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-0.75rem' }}>
+            <Link to="/forgot-password" style={{ color: 'hsl(var(--accent-primary))', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 500 }}>
+              Forgot password?
+            </Link>
+          </div>
 
           <Button type="submit" loading={loading} style={{ justifyContent: 'center', marginTop: '0.5rem' }}>
             Sign In

@@ -94,6 +94,11 @@ class GoogleOAuthView(views.APIView):
                 if not created:
                     social_acc.extra_data = extra_data
                     social_acc.save()
+                
+                # Mark as verified since Google verifies emails
+                if not user.is_email_verified:
+                    user.is_email_verified = True
+                    user.save()
             else:
                 # Create a new user with randomized password
                 logger.info(f"Registering new user through Google OAuth: {email}")
@@ -108,7 +113,8 @@ class GoogleOAuthView(views.APIView):
                 user = User.objects.create_user(
                     username=username,
                     email=email,
-                    password=User.objects.make_random_password()
+                    password=User.objects.make_random_password(),
+                    is_email_verified=True
                 )
                 
                 # Save social account connection link
