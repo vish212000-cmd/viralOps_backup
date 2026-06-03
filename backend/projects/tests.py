@@ -1,6 +1,8 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from unittest.mock import patch
+import os
 from rest_framework import status
 from rest_framework.test import APIClient
 from organizations.models import Organization, Membership
@@ -285,6 +287,131 @@ class FileUploadStorageTestCase(TestCase):
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('file', response.data)
+
+
+class TranscriptionTestCase(TestCase):
+    def setUp(self):
+        self.org = Organization.objects.create(name='Trans Org', slug='trans-org')
+        self.user = User.objects.create_user(username='trans_tester', email='trans@viralops.com', password='password123')
+        self.proj = Project.objects.create(organization=self.org, name='Trans Project')
+        
+    def test_transcription_fallback_simulated(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from projects.transcription.services import transcribe_source_input
+        
+        # Ensure env keys are not present
+        os.environ.pop('OPENAI_API_KEY', None)
+        os.environ.pop('ASSEMBLYAI_API_KEY', None)
+        
+        source = SourceInput.objects.create(
+            project=self.proj,
+            type='ARTICLE',
+            title='Sample Title',
+            text_content='Hello world. This is a text content source material.'
+        )
+        raw, norm, segments, duration = transcribe_source_input(source)
+        self.assertEqual(raw, source.text_content)
+        self.assertTrue(len(segments) > 0)
+        self.assertEqual(segments[0]['text'], 'Hello world. This is a text content source material.')
+
+    @patch('requests.post')
+    def test_transcription_whisper_mock(self, mock_post):
+        import os
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from projects.transcription.services import transcribe_source_input
+        
+        os.environ['OPENAI_API_KEY'] = 'mock_openai_key'
+        os.environ['TRANSCRIPTION_PROVIDER'] = 'whisper'
+        
+        # Mock Response
+        mock_response = mock_post.return_value
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'text': 'This is a mock transcribed text from Whisper.',
+            'duration': 120.5,
+            'segments': [
+                {'start': 0.0, 'end': 10.0, 'text': 'This is a mock transcribed text'},
+                {'start': 10.0, 'end': 20.0, 'text': 'from Whisper.'}
+            ]
+        }
+        
+        # Source input with a mock file
+        video_file = SimpleUploadedFile("test_video.mp4", b"fake binary", content_type="video/mp4")
+        source = SourceInput.objects.create(
+            project=self.proj,
+            type='VIDEO',
+            title='Whisper Video',
+            file=video_file
+        )
+        
+        raw, norm, segments, duration = transcribe_source_input(source)
+        self.assertEqual(raw, 'This is a mock transcribed text from Whisper.')
+        self.assertEqual(duration, 120)
+        self.assertEqual(len(segments), 2)
+        self.assertEqual(segments[0]['text'], 'This is a mock transcribed text')
+
+    @patch('requests.post')
+    @patch('requests.get')
+    def test_transcription_assemblyai_mock(self, mock_get, mock_post):
+        import os
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from projects.transcription.services import transcribe_source_input
+        
+        os.environ['ASSEMBLYAI_API_KEY'] = 'mock_assembly_key'
+        os.environ['TRANSCRIPTION_PROVIDER'] = 'assemblyai'
+        
+        # Mock Upload response & Transcription submission response
+        class MockResponse:
+            def __init__(self, json_data, status_code):
+                self.json_data = json_data
+                self.status_code = status_code
+            def json(self):
+                return self.json_data
+            @property
+            def text(self):
+                return str(self.json_data)
+        
+        mock_post.side_effect = [
+            MockResponse({'upload_url': 'https://assemblyai/upload/123'}, 200), # upload
+            MockResponse({'id': 'job_123'}, 200) # submit job
+        ]
+        
+        # Mock polling response
+        mock_get.return_value = MockResponse({
+            'status': 'completed',
+            'text': 'This is a mock transcribed text from AssemblyAI.',
+            'audio_duration': 65, # duration in seconds
+            'utterances': [
+                {'start': 0, 'end': 5000, 'speaker': 'A', 'text': 'This is a mock transcribed text'},
+                {'start': 5000, 'end': 10000, 'speaker': 'B', 'text': 'from AssemblyAI.'}
+            ]
+        }, 200)
+        
+        video_file = SimpleUploadedFile("test_audio.mp3", b"fake binary", content_type="audio/mp3")
+        source = SourceInput.objects.create(
+            project=self.proj,
+            type='AUDIO',
+            title='Assembly Audio',
+            file=video_file
+        )
+        
+        raw, norm, segments, duration = transcribe_source_input(source)
+        self.assertEqual(raw, 'This is a mock transcribed text from AssemblyAI.')
+        self.assertEqual(duration, 65)
+        self.assertEqual(len(segments), 2)
+        self.assertEqual(segments[0]['speaker'], 'Speaker A')
+
+    def test_usage_logging_minutes(self):
+        from projects.transcription.services import log_transcription_usage
+        
+        # 125 seconds = 2 minutes (rounded up/down: max(1, duration/60))
+        log_transcription_usage(self.org, self.user, 125)
+        
+        usage = UsageEvent.objects.filter(organization=self.org, event_type='TRANSCRIPTION_MINUTES').first()
+        self.assertIsNotNone(usage)
+        self.assertEqual(usage.quantity, 2)
+        self.assertEqual(usage.user, self.user)
+
 
 
 

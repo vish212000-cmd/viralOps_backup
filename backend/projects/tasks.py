@@ -42,36 +42,9 @@ def process_source_input(source_input_id):
         logger.info(f"Ingesting source input: {source_input.type} (ID: {source_input.id})")
         time.sleep(2) # Simulate processing/ingestion delay for realistic UI loading states
 
-        # 1. Normalize content text
-        raw_text = ""
-        if source_input.type in ['ARTICLE', 'TRANSCRIPT', 'SCRIPT', 'PDF']:
-            raw_text = source_input.text_content
-        elif source_input.type == 'YOUTUBE':
-            raw_text = f"This transcript is extracted from the YouTube video at {source_input.source_url}. The video covers advanced lessons on {source_input.title or 'content creation'}. We will review standard tips, growth metrics, and hook strategies."
-        elif source_input.type in ['VIDEO', 'AUDIO']:
-            raw_text = f"Transcribed content from uploaded file: {source_input.file_name}. This audio stream covers core concepts of {source_input.title or 'creative automation'} and audience engagement."
-
-        if not raw_text:
-            raw_text = "Empty source content provided."
-
-        normalized_text = "\n".join([line.strip() for line in raw_text.splitlines() if line.strip()])
-        word_count = len(normalized_text.split())
-        simulated_duration_minutes = max(1, int(word_count / 150)) # 150 words per minute average speech rate
-
-        # Create simulated transcript segments
-        segments = []
-        words = normalized_text.split()
-        chunk_size = 50
-        for i in range(0, len(words), chunk_size):
-            segment_words = words[i:i+chunk_size]
-            start_sec = (i / chunk_size) * 20
-            end_sec = start_sec + 20
-            segments.append({
-                "start": start_sec,
-                "end": end_sec,
-                "speaker": "Speaker 1" if (i // chunk_size) % 2 == 0 else "Speaker 2",
-                "text": " ".join(segment_words)
-            })
+        # 1. Normalize & transcribe content text
+        from projects.transcription.services import transcribe_source_input
+        raw_text, normalized_text, segments, duration_seconds = transcribe_source_input(source_input)
 
         # Save TranscriptRecord
         TranscriptRecord.objects.create(
@@ -175,11 +148,8 @@ def process_source_input(source_input_id):
         )
 
         # 5. Usage Logging
-        UsageEvent.objects.create(
-            organization=org,
-            event_type='TRANSCRIPTION_MINUTES',
-            quantity=simulated_duration_minutes
-        )
+        from projects.transcription.services import log_transcription_usage
+        log_transcription_usage(org, None, duration_seconds)
         UsageEvent.objects.create(
             organization=org,
             event_type='AI_GENERATION',

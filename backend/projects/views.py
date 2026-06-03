@@ -159,7 +159,7 @@ class SourceInputViewSet(TenantScopedQuerysetMixin, viewsets.ModelViewSet):
             project=project, 
             status='PENDING',
             file_size=file_size if file_size else None,
-            file_name=file_name if file_name else None
+            file_name=file_name if file_name else ''
         )
         
         # Log Audit
