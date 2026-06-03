@@ -1,6 +1,13 @@
 from .base import *
+from django.core.exceptions import ImproperlyConfigured
 
 DEBUG = False
+
+# Enforce secure SECRET_KEY on startup
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY or SECRET_KEY == 'django-insecure-060b&@4r83dz(o()bj8a%hyd@x5ar1!(f9#5o)--bgl!g^f_q8':
+    raise ImproperlyConfigured("SECRET_KEY environment variable is required and must be secure in production.")
+
 
 # MySQL Production Pool Database Setup
 DATABASES = {

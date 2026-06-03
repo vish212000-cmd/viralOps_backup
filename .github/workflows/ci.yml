@@ -28,6 +28,19 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r backend/requirements.txt
 
+    - name: Run Production Secrets Check
+      env:
+        SECRET_KEY: ci-test-secret-key-1234567890
+        DB_NAME: viralops
+        DB_USER: root
+        DB_PASSWORD: password
+        DB_HOST: localhost
+        RAZORPAY_KEY_ID: mock_razorpay_key
+        RAZORPAY_KEY_SECRET: mock_razorpay_secret
+      run: |
+        cd backend
+        python manage.py check_secrets
+
     - name: Run Django Tests
       env:
         SECRET_KEY: ci-test-secret-key-1234567890
