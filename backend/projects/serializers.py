@@ -43,28 +43,49 @@ class SourceInputSerializer(serializers.ModelSerializer):
         model = SourceInput
         fields = (
             'id', 'project', 'type', 'title', 'source_url', 'file_name', 
-            'file_size', 'text_content', 'status', 'error_message', 'created_at', 'updated_at'
+            'file_size', 'file', 'text_content', 'status', 'error_message', 'created_at', 'updated_at'
         )
         read_only_fields = ('project', 'status', 'error_message')
 
     def validate(self, data):
         stype = data.get('type')
+        uploaded_file = data.get('file')
         
+        if uploaded_file:
+            if uploaded_file.size > 52428800:
+                raise serializers.ValidationError({"file": "File size exceeds the maximum 50MB limit."})
+            
+            name = uploaded_file.name.lower()
+            if stype == 'VIDEO':
+                if not (name.endswith('.mp4') or name.endswith('.mov') or name.endswith('.avi') or name.endswith('.mkv') or name.endswith('.webm')):
+                    raise serializers.ValidationError({"file": "Unsupported video file extension."})
+            elif stype == 'AUDIO':
+                if not (name.endswith('.mp3') or name.endswith('.wav') or name.endswith('.m4a') or name.endswith('.aac') or name.endswith('.flac')):
+                    raise serializers.ValidationError({"file": "Unsupported audio file extension."})
+            elif stype == 'PDF':
+                if not name.endswith('.pdf'):
+                    raise serializers.ValidationError({"file": "Only PDF files are allowed for PDF source inputs."})
+            else:
+                raise serializers.ValidationError({"file": "Files can only be uploaded for VIDEO, AUDIO, or PDF source inputs."})
+
         if stype == 'YOUTUBE':
             url = data.get('source_url', '')
             if not url or not (url.startswith('https://') or url.startswith('http://')):
                 raise serializers.ValidationError({"source_url": "A valid YouTube URL must be provided."})
                 
         elif stype in ['VIDEO', 'AUDIO']:
-            file_size = data.get('file_size')
-            if file_size and file_size > 52428800:
-                raise serializers.ValidationError({"file_size": "File size exceeds the maximum 50MB limit."})
+            if not uploaded_file and not data.get('file_name'):
+                raise serializers.ValidationError({"file_name": "A file or file_name is required for video/audio sources."})
                 
-        elif stype in ['ARTICLE', 'TRANSCRIPT', 'SCRIPT', 'PDF']:
+        elif stype in ['ARTICLE', 'TRANSCRIPT', 'SCRIPT']:
             text = data.get('text_content', '').strip()
             if not text:
                 raise serializers.ValidationError({"text_content": "Text content cannot be empty for text-based sources."})
                 
+        elif stype == 'PDF':
+            if not uploaded_file and not data.get('text_content', '').strip():
+                raise serializers.ValidationError({"text_content": "Either a PDF file upload or text content is required."})
+
         return data
 
 

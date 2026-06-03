@@ -28,6 +28,9 @@ source_detail = SourceInputViewSet.as_view({
     'get': 'retrieve',
     'delete': 'destroy'
 })
+source_download = SourceInputViewSet.as_view({
+    'get': 'download'
+})
 
 asset_list = GeneratedAssetViewSet.as_view({
     'get': 'list',
@@ -79,6 +82,7 @@ urlpatterns = [
     # Sources (scoped to project)
     path('orgs/<str:org_slug>/projects/<int:project_id>/sources/', source_list, name='source-list'),
     path('orgs/<str:org_slug>/projects/<int:project_id>/sources/<int:pk>/', source_detail, name='source-detail'),
+    path('orgs/<str:org_slug>/projects/<int:project_id>/sources/<int:pk>/download/', source_download, name='source-download'),
     
     # Assets (scoped to project)
     path('orgs/<str:org_slug>/projects/<int:project_id>/assets/', asset_list, name='asset-list'),

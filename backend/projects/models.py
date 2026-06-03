@@ -40,6 +40,7 @@ class SourceInput(models.Model):
     source_url = models.URLField(blank=True, default='')
     file_name = models.CharField(max_length=255, blank=True, default='')
     file_size = models.BigIntegerField(null=True, blank=True)
+    file = models.FileField(upload_to="sources/%Y/%m/%d/", null=True, blank=True)
     text_content = models.TextField(blank=True, default='')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     error_message = models.TextField(blank=True, default='')

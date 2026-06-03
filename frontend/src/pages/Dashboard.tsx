@@ -36,12 +36,14 @@ export default function Dashboard() {
   const [sourceTitle, setSourceTitle] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
   const [sourceText, setSourceText] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Validation errors
   const [nameError, setNameError] = useState('');
   const [urlError, setUrlError] = useState('');
   const [textError, setTextError] = useState('');
+  const [fileError, setFileError] = useState('');
 
   const navigate = useNavigate();
 
@@ -121,6 +123,16 @@ export default function Dashboard() {
       hasValError = true;
     }
 
+    if (['VIDEO', 'AUDIO', 'PDF'].includes(sourceType)) {
+      if (!selectedFile) {
+        setFileError('Please select a file to upload.');
+        hasValError = true;
+      } else if (selectedFile.size > 52428800) {
+        setFileError('File size exceeds the 50MB limit.');
+        hasValError = true;
+      }
+    }
+
     if (hasValError || !currentOrg) return;
 
     setSubmitting(true);
@@ -130,27 +142,30 @@ export default function Dashboard() {
         description: projDesc
       }) as Project;
 
-      const sourcePayload: Record<string, any> = {
-        type: sourceType,
-        title: sourceTitle,
-      };
+      const formData = new FormData();
+      formData.append('type', sourceType);
+      formData.append('title', sourceTitle);
 
       if (sourceType === 'YOUTUBE') {
-        sourcePayload.source_url = sourceUrl;
-      } else if (sourceType === 'VIDEO' || sourceType === 'AUDIO') {
-        sourcePayload.file_name = sourceUrl || 'uploaded_file.mp4';
-        sourcePayload.file_size = 15242880; // 15MB Mock
+        formData.append('source_url', sourceUrl);
+      } else if (['VIDEO', 'AUDIO', 'PDF'].includes(sourceType)) {
+        if (selectedFile) {
+          formData.append('file', selectedFile);
+          formData.append('file_name', selectedFile.name);
+          formData.append('file_size', selectedFile.size.toString());
+        }
       } else {
-        sourcePayload.text_content = sourceText;
+        formData.append('text_content', sourceText);
       }
 
-      await api.post(`/api/orgs/${currentOrg.slug}/projects/${project.id}/sources/`, sourcePayload);
+      await api.post(`/api/orgs/${currentOrg.slug}/projects/${project.id}/sources/`, formData);
 
       setProjName('');
       setProjDesc('');
       setSourceTitle('');
       setSourceUrl('');
       setSourceText('');
+      setSelectedFile(null);
       setShowNewProj(false);
       
       showToast('Ingestion pipeline triggered!', 'success');
@@ -160,6 +175,8 @@ export default function Dashboard() {
       const errors = err?.data;
       if (errors?.file_size) {
         showToast(errors.file_size, 'error');
+      } else if (errors?.file) {
+        showToast(errors.file[0] || errors.file, 'error');
       } else {
         showToast('Failed to start ingestion.', 'error');
       }
@@ -345,17 +362,23 @@ export default function Dashboard() {
                 <div style={{ borderTop: '1px solid hsl(var(--border-muted))', paddingTop: '1.25rem' }}>
                   <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem' }}>Content Ingestion Source</h3>
                   
-                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
                     {[
                       { id: 'ARTICLE', label: 'Article/Text', icon: <FileText size={16} /> },
                       { id: 'YOUTUBE', label: 'YouTube URL', icon: <Link2 size={16} /> },
                       { id: 'VIDEO', label: 'Video Upload', icon: <Video size={16} /> },
+                      { id: 'AUDIO', label: 'Audio Upload', icon: <Video size={16} /> },
+                      { id: 'PDF', label: 'PDF Document', icon: <FileText size={16} /> },
                     ].map(type => (
                       <Button
                         key={type.id}
                         type="button"
                         variant={sourceType === type.id ? 'primary' : 'secondary'}
-                        onClick={() => setSourceType(type.id as SourceType)}
+                        onClick={() => {
+                          setSourceType(type.id as SourceType);
+                          setSelectedFile(null);
+                          setFileError('');
+                        }}
                         style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
                       >
                         {type.icon} {type.label}
@@ -375,15 +398,34 @@ export default function Dashboard() {
                     />
                   )}
 
-                  {sourceType === 'VIDEO' && (
-                    <Input 
-                      label="Simulate Video Upload (File Name)"
-                      type="text"
-                      value={sourceUrl}
-                      onChange={(e) => setSourceUrl(e.target.value)}
-                      required
-                      placeholder="e.g. interview_recording_raw.mp4"
-                    />
+                  {['VIDEO', 'AUDIO', 'PDF'].includes(sourceType) && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1rem' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'hsl(var(--text-muted))' }}>
+                        Upload {sourceType === 'VIDEO' ? 'Video' : sourceType === 'AUDIO' ? 'Audio' : 'PDF'} File (Max 50MB)
+                      </label>
+                      <input 
+                        type="file"
+                        accept={sourceType === 'VIDEO' ? 'video/*' : sourceType === 'AUDIO' ? 'audio/*' : '.pdf'}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0] || null;
+                          setSelectedFile(f);
+                        }}
+                        style={{
+                          background: 'hsl(var(--border-muted) / 0.1)',
+                          border: '1px solid hsl(var(--border-muted))',
+                          padding: '0.75rem',
+                          borderRadius: '8px',
+                          color: 'hsl(var(--text-primary))',
+                        }}
+                        required
+                      />
+                      {fileError && <span style={{ fontSize: '0.75rem', color: 'hsl(var(--danger))' }}>{fileError}</span>}
+                      {selectedFile && (
+                        <div style={{ fontSize: '0.8rem', color: 'hsl(var(--success))', marginTop: '0.25rem' }}>
+                          Selected: {selectedFile.name} ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {sourceType === 'ARTICLE' && (

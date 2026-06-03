@@ -46,9 +46,12 @@ class ApiClient {
     const url = `${BASE_URL}${endpoint}`;
     
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...options.headers,
     };
+
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = options.headers?.['Content-Type'] || 'application/json';
+    }
 
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
@@ -102,10 +105,11 @@ class ApiClient {
   }
 
   public post(endpoint: string, body?: any, options: RequestOptions = {}): Promise<any> {
+    const isFormData = body instanceof FormData;
     return this.request(endpoint, { 
       ...options, 
       method: 'POST', 
-      body: body ? JSON.stringify(body) : undefined 
+      body: isFormData ? body : (body ? JSON.stringify(body) : undefined) 
     });
   }
 

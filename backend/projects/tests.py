@@ -220,3 +220,71 @@ class E2ELifecycleTestCase(TestCase):
         self.assertTrue(AuditLog.objects.filter(action='ASSET_EDITED', details__asset_id=asset_to_edit.id).exists())
 
 
+class FileUploadStorageTestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username='file_tester', email='file_tester@viralops.com', password='password123')
+        self.org = Organization.objects.create(name='File Org', slug='file-org')
+        self.membership = Membership.objects.create(user=self.user, organization=self.org, role='MEMBER')
+        self.proj = Project.objects.create(organization=self.org, name='File Project')
+        
+        self.client.force_authenticate(user=self.user)
+        self.client.defaults['HTTP_X_ORG_SLUG'] = self.org.slug
+
+    def test_file_upload_valid(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        video_file = SimpleUploadedFile("test_video.mp4", b"fake mp4 video binary content", content_type="video/mp4")
+        
+        url = reverse('source-list', kwargs={'org_slug': self.org.slug, 'project_id': self.proj.id})
+        response = self.client.post(url, {
+            'type': 'VIDEO',
+            'title': 'Test Upload',
+            'file': video_file
+        }, format='multipart')
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('file', response.data)
+        self.assertTrue(response.data['file'].endswith('.mp4'))
+        
+        # Verify signed URL / download endpoint
+        source_id = response.data['id']
+        download_url = reverse('source-download', kwargs={
+            'org_slug': self.org.slug,
+            'project_id': self.proj.id,
+            'pk': source_id
+        })
+        dl_response = self.client.get(download_url)
+        self.assertEqual(dl_response.status_code, status.HTTP_200_OK)
+        self.assertIn('download_url', dl_response.data)
+
+    def test_file_upload_rejected_over_size(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        # Over 50MB file size limit (52428801 bytes)
+        large_file = SimpleUploadedFile("too_large.mp4", b"0" * 52428801, content_type="video/mp4")
+        
+        url = reverse('source-list', kwargs={'org_slug': self.org.slug, 'project_id': self.proj.id})
+        response = self.client.post(url, {
+            'type': 'VIDEO',
+            'title': 'Too Large Upload',
+            'file': large_file
+        }, format='multipart')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('file', response.data)
+
+    def test_file_upload_rejected_unsupported_type(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        exe_file = SimpleUploadedFile("malware.exe", b"fake binary", content_type="application/octet-stream")
+        
+        url = reverse('source-list', kwargs={'org_slug': self.org.slug, 'project_id': self.proj.id})
+        response = self.client.post(url, {
+            'type': 'VIDEO',
+            'title': 'Unsupported Upload',
+            'file': exe_file
+        }, format='multipart')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('file', response.data)
+
+
+

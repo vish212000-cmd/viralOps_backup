@@ -113,6 +113,8 @@ class SourceInputViewSet(TenantScopedQuerysetMixin, viewsets.ModelViewSet):
         # Verify Billing generations limit before triggering ingestion
         from billing.models import WorkspaceSubscription, Plan
         from django.utils import timezone
+        from billing.views import get_or_create_default_plans
+        get_or_create_default_plans()
         
         subscription, created = WorkspaceSubscription.objects.get_or_create(
             organization=org,
@@ -137,11 +139,28 @@ class SourceInputViewSet(TenantScopedQuerysetMixin, viewsets.ModelViewSet):
             raise exceptions.ValidationError("Monthly AI generation limit exceeded. Please upgrade your plan.")
         
         # Enforce file upload size validation limits locally
-        file_size = self.request.data.get('file_size') or 0
-        if file_size and int(file_size) > 52428800:
-            raise exceptions.ValidationError({"file_size": "File size exceeds local 50MB limits."})
+        uploaded_file = self.request.FILES.get('file')
+        file_size = 0
+        file_name = ''
+        if uploaded_file:
+            file_size = uploaded_file.size
+            file_name = uploaded_file.name
+            if file_size > 52428800:
+                raise exceptions.ValidationError({"file": "File size exceeds local 50MB limits."})
+        else:
+            file_size_data = self.request.data.get('file_size')
+            if file_size_data:
+                file_size = int(file_size_data)
+                if file_size > 52428800:
+                    raise exceptions.ValidationError({"file_size": "File size exceeds local 50MB limits."})
+            file_name = self.request.data.get('file_name', '')
 
-        source_input = serializer.save(project=project, status='PENDING')
+        source_input = serializer.save(
+            project=project, 
+            status='PENDING',
+            file_size=file_size if file_size else None,
+            file_name=file_name if file_name else None
+        )
         
         # Log Audit
         AuditLog.objects.create(
@@ -153,6 +172,35 @@ class SourceInputViewSet(TenantScopedQuerysetMixin, viewsets.ModelViewSet):
 
         # Trigger Celery Ingestion Job
         process_source_input.delay(source_input.id)
+
+    @decorators.action(detail=True, methods=['get'])
+    def download(self, request, org_slug=None, project_id=None, pk=None):
+        source_input = self.get_object()
+        if not source_input.file:
+            return Response({'error': 'No uploaded file associated with this source.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if S3 is active by checking storage settings
+        from django.core.files.storage import default_storage
+        try:
+            from storages.backends.s3boto3 import S3Boto3Storage
+            if isinstance(default_storage, S3Boto3Storage):
+                client = default_storage.connection.meta.client
+                bucket = default_storage.bucket_name
+                key = source_input.file.name
+                
+                url = client.generate_presigned_url(
+                    'get_object',
+                    Params={'Bucket': bucket, 'Key': key},
+                    ExpiresIn=3600
+                )
+                return Response({'download_url': url})
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error generating presigned S3 URL: {e}")
+        
+        # Local fallback pre-signed / standard URL
+        url = request.build_absolute_uri(source_input.file.url)
+        return Response({'download_url': url})
 
 class GeneratedAssetViewSet(TenantScopedQuerysetMixin, viewsets.ModelViewSet):
     queryset = GeneratedAsset.objects.all().select_related('project', 'project__organization').prefetch_related('versions').order_by('-created_at')
