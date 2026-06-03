@@ -1,0 +1,37 @@
+# Python virtual environments & caches
+venv/
+env/
+ENV/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Node modules & build files
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# SQLite Database
+*.sqlite3
+
+# Django media & static directories
+/backend/media/
+/backend/staticfiles/
+
+# Logs and temporary files
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Environment files
+.env
+.env.production
+.env.local

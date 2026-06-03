@@ -1,0 +1,409 @@
+import React, { useEffect, useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import { api, FileResponse } from '../utils/api';
+import { Project, SourceInput, GeneratedAsset } from '../types';
+import { Button } from '../components/design/Button';
+import { Badge } from '../components/design/Badge';
+import { Card } from '../components/design/Card';
+import { 
+  ArrowLeft, Loader2, AlertTriangle, FileText, CheckCircle2,
+  Star, Edit2, RotateCw, Download, Save, History, Folder, Settings, Shield, LogOut, Sparkles
+} from 'lucide-react';
+
+type TabType = 'hooks' | 'titles' | 'captions' | 'scripts' | 'ctas' | 'hashtags' | 'source';
+
+export default function ProjectDetails() {
+  const { projectId } = useParams<{ projectId: string }>();
+  const { user, logoutUser } = useAuth();
+  const { showToast } = useToast();
+
+  const [project, setProject] = useState<Project | null>(null);
+  const [sources, setSources] = useState<SourceInput[]>([]);
+  const [assets, setAssets] = useState<GeneratedAsset[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  
+  // Navigation Tabs
+  const [activeTab, setActiveTab] = useState<TabType>('hooks');
+
+  // Editing state
+  const [editingAssetId, setEditingAssetId] = useState<number | null>(null);
+  const [editingContent, setEditingContent] = useState('');
+  const [savingAssetId, setSavingAssetId] = useState<number | null>(null);
+
+  // Regeneration state
+  const [regeneratingId, setRegeneratingId] = useState<number | null>(null);
+
+  const navigate = useNavigate();
+  const orgSlug = api.orgSlug;
+  const username = user?.username || 'Creator';
+
+  useEffect(() => {
+    loadProjectDetails();
+    const interval = setInterval(() => {
+      checkProjectStatus();
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [projectId]);
+
+  const loadProjectDetails = async () => {
+    if (!projectId) return;
+    try {
+      const proj = await api.get(`/api/orgs/${orgSlug}/projects/${projectId}/`) as Project;
+      setProject(proj);
+
+      const srcList = await api.get(`/api/orgs/${orgSlug}/projects/${projectId}/sources/`) as SourceInput[];
+      setSources(srcList);
+
+      const assetList = await api.get(`/api/orgs/${orgSlug}/projects/${projectId}/assets/`) as GeneratedAsset[];
+      setAssets(assetList);
+      
+      setError('');
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load project details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkProjectStatus = async () => {
+    if (!project || project.status === 'COMPLETED' || !projectId) return;
+    const activeSource = sources[0];
+    if (activeSource && activeSource.status === 'FAILED') return;
+    try {
+      const proj = await api.get(`/api/orgs/${orgSlug}/projects/${projectId}/`) as Project;
+      if (proj.status !== project.status) {
+        setProject(proj);
+        if (proj.status === 'COMPLETED') {
+          const srcList = await api.get(`/api/orgs/${orgSlug}/projects/${projectId}/sources/`) as SourceInput[];
+          setSources(srcList);
+          const assetList = await api.get(`/api/orgs/${orgSlug}/projects/${projectId}/assets/`) as GeneratedAsset[];
+          setAssets(assetList);
+          showToast('Ingestion pipeline completed successfully!', 'success');
+        }
+      }
+    } catch (err) {
+      console.error('Polling error:', err);
+    }
+  };
+
+  const handleToggleFavorite = async (assetId: number) => {
+    try {
+      const res = await api.post(`/api/orgs/${orgSlug}/projects/${projectId}/assets/${assetId}/toggle_favorite/`) as { is_favorite: boolean };
+      setAssets(assets.map(a => a.id === assetId ? { ...a, is_favorite: res.is_favorite } : a));
+      showToast(res.is_favorite ? 'Added to favorites' : 'Removed from favorites', 'info');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleStartEdit = (asset: GeneratedAsset) => {
+    setEditingAssetId(asset.id);
+    setEditingContent(asset.content);
+  };
+
+  const handleSaveEdit = async (assetId: number) => {
+    setSavingAssetId(assetId);
+    try {
+      const updated = await api.post(`/api/orgs/${orgSlug}/projects/${projectId}/assets/${assetId}/save_version/`, {
+        content: editingContent
+      }) as GeneratedAsset;
+      setAssets(assets.map(a => a.id === assetId ? updated : a));
+      setEditingAssetId(null);
+      showToast('Asset changes saved & version tracked.', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to save asset edits.', 'error');
+    } finally {
+      setSavingAssetId(null);
+    }
+  };
+
+  const handleRegenerate = async (assetId: number) => {
+    setRegeneratingId(assetId);
+    try {
+      const regenerated = await api.post(`/api/orgs/${orgSlug}/projects/${projectId}/assets/${assetId}/regenerate/`) as GeneratedAsset;
+      setAssets(assets.map(a => a.id === assetId ? regenerated : a));
+      if (editingAssetId === assetId) {
+        setEditingContent(regenerated.content);
+      }
+      showToast('Asset content regenerated.', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('AI Regeneration failed. Check provider rate limits.', 'error');
+    } finally {
+      setRegeneratingId(null);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const res = await api.get(`/api/orgs/${orgSlug}/projects/${projectId}/export_pack/`) as FileResponse;
+      if (res.isFile) {
+        const url = window.URL.createObjectURL(res.blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `viralops_export_${projectId}.txt`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        showToast('Export content pack downloaded!', 'success');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to download content pack.', 'error');
+    }
+  };
+
+  const handleLogout = () => {
+    logoutUser();
+    navigate('/');
+  };
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'hsl(var(--bg-main))' }}>
+        <Loader2 className="loading-spinner" size={40} />
+      </div>
+    );
+  }
+
+  if (error || !project) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'hsl(var(--bg-main))', gap: '1rem' }}>
+        <AlertTriangle size={48} color="hsl(var(--danger))" />
+        <h3>{error || 'Project not found.'}</h3>
+        <Link to="/dashboard" className="button secondary" style={{ textDecoration: 'none' }}>
+          <ArrowLeft size={16} /> Back to Dashboard
+        </Link>
+      </div>
+    );
+  }
+
+  const tabFilters = {
+    hooks: 'HOOK',
+    titles: 'TITLE',
+    captions: 'CAPTION',
+    scripts: 'SCRIPT',
+    ctas: 'CTA',
+    hashtags: 'HASHTAG',
+  };
+
+  const activeAssets = assets.filter(a => a.type === (tabFilters as any)[activeTab]);
+  const activeSource = sources[0];
+
+  return (
+    <div className="dashboard-layout">
+      {/* Sidebar */}
+      <aside className="sidebar">
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
+            <Sparkles size={24} color="hsl(var(--accent-primary))" />
+            <span style={{ fontSize: '1.3rem', fontWeight: 800, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>
+              Viral<span style={{ color: 'hsl(var(--accent-primary))' }}>Ops</span>
+            </span>
+          </div>
+
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.8rem', borderRadius: '8px', color: 'hsl(var(--text-primary))', textDecoration: 'none', background: 'hsl(var(--border-muted) / 0.3)', fontWeight: 600 }}>
+              <Folder size={18} /> Projects
+            </Link>
+            <Link to="/preferences" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.8rem', borderRadius: '8px', color: 'hsl(var(--text-muted))', textDecoration: 'none', fontWeight: 500 }}>
+              <Settings size={18} /> Brand Voice
+            </Link>
+            <Link to="/admin" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.8rem', borderRadius: '8px', color: 'hsl(var(--text-muted))', textDecoration: 'none', fontWeight: 500 }}>
+              <Shield size={18} /> Admin Center
+            </Link>
+          </nav>
+        </div>
+
+        <div>
+          <div style={{ borderTop: '1px solid hsl(var(--border-muted))', paddingTop: '1rem', marginBottom: '1rem' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{username}</div>
+            <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-dim))' }}>Member</div>
+          </div>
+          <Button variant="secondary" onClick={handleLogout} style={{ width: '100%', fontSize: '0.85rem', padding: '0.5rem' }}>
+            <LogOut size={16} /> Logout
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="main-content">
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2.5rem' }}>
+          <div>
+            <Link to="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'hsl(var(--text-muted))', textDecoration: 'none', fontSize: '0.9rem', marginBottom: '0.75rem' }}>
+              <ArrowLeft size={14} /> Back to Dashboard
+            </Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>{project.name}</h1>
+              <Badge status={project.status} />
+            </div>
+            <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', marginTop: '0.25rem' }}>{project.description || 'Repurposing workspace for ingested content.'}</p>
+          </div>
+          
+          {project.status === 'COMPLETED' && (
+            <Button onClick={handleExport}>
+              <Download size={16} /> Export Content Pack
+            </Button>
+          )}
+        </header>
+
+        {project.status !== 'COMPLETED' && (!activeSource || activeSource.status !== 'FAILED') ? (
+          <Card style={{ padding: '4rem 2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyItems: 'center' }}>
+            <Loader2 size={48} className="loading-spinner" style={{ marginBottom: '1.5rem' }} />
+            <h3 style={{ fontSize: '1.3rem', marginBottom: '0.7rem' }}>Content Ingestion Pipeline Active</h3>
+            <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', maxWidth: '480px', lineHeight: 1.6, marginBottom: '2rem' }}>
+              We are transcribing, cleaning, and normalizing your text source. Then our AI orchestrator will extract hooks, captions, and platform short scripts.
+            </p>
+            <div style={{ display: 'flex', gap: '2rem', fontSize: '0.85rem', color: 'hsl(var(--text-dim))' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'hsl(var(--success))' }}><CheckCircle2 size={16} /> Source Received</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'hsl(var(--accent-primary))' }} className="pulsate"><RotateCw size={16} className="spin" /> Processing AI Pipeline</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>Assets Ready</div>
+            </div>
+          </Card>
+        ) : activeSource && activeSource.status === 'FAILED' ? (
+          <Card style={{ padding: '3rem', textAlign: 'center', borderColor: 'hsl(var(--danger) / 0.3)' }}>
+            <AlertTriangle size={48} color="hsl(var(--danger))" style={{ marginBottom: '1rem' }} />
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'hsl(var(--danger))' }}>Ingestion Pipeline Failed</h3>
+            <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
+              Error Log: {activeSource?.error_message || 'Unexpected worker timeout during execution.'}
+            </p>
+            <Button onClick={() => navigate('/dashboard')}>Back to Projects</Button>
+          </Card>
+        ) : (
+          <div>
+            {/* Navigation Tabs */}
+            <div style={{ display: 'flex', borderBottom: '1px solid hsl(var(--border-muted))', marginBottom: '2rem', overflowX: 'auto', gap: '1rem' }}>
+              {[
+                { id: 'hooks', label: 'Hooks Opener' },
+                { id: 'titles', label: 'Clickable Titles' },
+                { id: 'captions', label: 'Social Captions' },
+                { id: 'scripts', label: 'Short Scripts' },
+                { id: 'ctas', label: 'CTAs' },
+                { id: 'hashtags', label: 'Hashtags' },
+                { id: 'source', label: 'Source Material' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id as TabType)}
+                  style={{ 
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: activeTab === tab.id ? '2px solid hsl(var(--accent-primary))' : '2px solid transparent',
+                    borderRadius: 0,
+                    padding: '0.75rem 0.5rem',
+                    color: activeTab === tab.id ? 'hsl(var(--text-primary))' : 'hsl(var(--text-muted))',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    boxShadow: 'none',
+                    transform: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content panel */}
+            <div style={{ minHeight: '400px' }}>
+              {activeTab === 'source' ? (
+                <Card style={{ padding: '2rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid hsl(var(--border-muted))', paddingBottom: '0.75rem' }}>
+                    <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <FileText size={18} /> Ingested Normalized Content
+                    </h3>
+                    <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-dim))' }}>
+                      Type: {activeSource?.type}
+                    </span>
+                  </div>
+                  <div style={{ whiteSpace: 'pre-wrap', color: 'hsl(var(--text-muted))', fontSize: '0.95rem', lineHeight: 1.6, maxHeight: '500px', overflowY: 'auto', paddingRight: '1rem' }}>
+                    {activeSource?.text_content || 'No text extracted.'}
+                  </div>
+                </Card>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  {activeAssets.length === 0 ? (
+                    <Card style={{ padding: '3rem', textAlign: 'center', color: 'hsl(var(--text-dim))' }}>
+                      No assets found for this category.
+                    </Card>
+                  ) : (
+                    activeAssets.map(asset => (
+                      <Card key={asset.id} style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid hsl(var(--border-muted))', paddingBottom: '0.75rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'hsl(var(--accent-primary))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {asset.type} ({asset.platform})
+                          </span>
+                          
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <Button 
+                              variant="secondary"
+                              onClick={() => handleToggleFavorite(asset.id)}
+                              style={{ padding: '0.4rem', border: 'none' }}
+                            >
+                              <Star size={16} fill={asset.is_favorite ? 'hsl(var(--warning))' : 'none'} color={asset.is_favorite ? 'hsl(var(--warning))' : 'currentColor'} />
+                            </Button>
+                            <Button 
+                              variant="secondary"
+                              onClick={() => handleRegenerate(asset.id)}
+                              loading={regeneratingId === asset.id}
+                              style={{ padding: '0.4rem', border: 'none' }}
+                            >
+                              <RotateCw size={16} className={regeneratingId === asset.id ? 'spin' : ''} />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {editingAssetId === asset.id ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <textarea
+                              value={editingContent}
+                              onChange={(e) => setEditingContent(e.target.value)}
+                              rows={asset.type === 'SCRIPT' || asset.type === 'CAPTION' ? 8 : 2}
+                              style={{ fontSize: '0.95rem', lineHeight: 1.6 }}
+                            />
+                            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                              <Button variant="secondary" onClick={() => setEditingAssetId(null)}>Cancel</Button>
+                              <Button onClick={() => handleSaveEdit(asset.id)} loading={savingAssetId === asset.id}>
+                                <Save size={14} /> Save Change
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div style={{ whiteSpace: 'pre-wrap', fontSize: '1rem', lineHeight: 1.6, color: 'hsl(var(--text-primary))', background: 'hsl(var(--bg-main) / 0.3)', padding: '1rem', borderRadius: '8px', border: '1px solid hsl(var(--border-muted) / 0.5)' }}>
+                              {asset.content}
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+                              <Button variant="secondary" onClick={() => handleStartEdit(asset)} style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+                                <Edit2 size={12} /> Edit Asset
+                              </Button>
+                              
+                              {asset.versions && asset.versions.length > 0 && (
+                                <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-dim))', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                  <History size={12} /> {asset.versions.length} edits saved
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                      </Card>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
