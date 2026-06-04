@@ -3,6 +3,38 @@ from django.core.exceptions import ImproperlyConfigured
 
 DEBUG = False
 
+import sentry_sdk
+import logging
+
+SENTRY_DSN = os.getenv('SENTRY_DSN', '')
+SENTRY_RELEASE = os.getenv('SENTRY_RELEASE', 'unknown')  # set from git commit
+SENTRY_ENV = os.getenv('SENTRY_ENV', 'production')
+
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        environment=SENTRY_ENV,
+        release=SENTRY_RELEASE,
+        integrations=[
+            sentry_sdk.integrations.django.DjangoIntegration(),
+            sentry_sdk.integrations.celery.CeleryIntegration(
+                monitor_beat_tasks=True,
+            ),
+            sentry_sdk.integrations.logging.LoggingIntegration(
+                level=logging.INFO,
+                event_level=logging.ERROR,
+            ),
+        ],
+        traces_sample_rate=0.1,
+        profiles_sample_rate=0.1,
+        send_default_pii=True,
+        # Exclude health check endpoints from tracing
+        before_send_transaction=lambda event, hint: None 
+            if event.get('transaction') in ['/health/', '/healthz/', '/ready/', '/metrics/', '/prometheus/']
+            else event,
+    )
+
+
 # Enforce secure SECRET_KEY on startup
 SECRET_KEY = os.getenv('SECRET_KEY')
 if not SECRET_KEY or SECRET_KEY == 'django-insecure-060b&@4r83dz(o()bj8a%hyd@x5ar1!(f9#5o)--bgl!g^f_q8':

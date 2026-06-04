@@ -413,5 +413,31 @@ class TranscriptionTestCase(TestCase):
         self.assertEqual(usage.user, self.user)
 
 
+class ObservabilityTestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_healthz_endpoint(self):
+        url = reverse('healthz')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {'status': 'UP'})
+
+    def test_ready_endpoint(self):
+        url = reverse('ready')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'READY')
+
+    def test_prometheus_metrics_endpoint(self):
+        # prometheus endpoint is exposed under root prometheus/metrics
+        response = self.client.get('/prometheus/metrics')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Verify it returns plain text format expected by Prometheus
+        self.assertIn('text/plain', response.headers['Content-Type'])
+        self.assertIn('viralops_api_requests_total', response.content.decode('utf-8'))
+
+
+
 
 

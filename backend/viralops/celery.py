@@ -11,3 +11,7 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 
 # Load task modules from all registered Django app configs.
 app.autodiscover_tasks()
+
+# Expose worker metrics to Prometheus registry
+from prometheus_client import REGISTRY
+

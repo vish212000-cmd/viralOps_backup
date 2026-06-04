@@ -7,6 +7,8 @@ from .analytics import (
     WorkspaceSummaryView, WorkspaceTrendsView,
     AdminAnalyticsSummaryView, AdminSystemHealthView
 )
+from .health import HealthzView, ReadyView
+
 
 # Explicit router mappings for ViewSets
 project_list = ProjectViewSet.as_view({
@@ -110,4 +112,6 @@ urlpatterns = [
     path('analytics/orgs/<str:org_slug>/workspace/trends/', WorkspaceTrendsView.as_view(), name='analytics-workspace-trends'),
     path('analytics/admin/summary/', AdminAnalyticsSummaryView.as_view(), name='analytics-admin-summary'),
     path('analytics/admin/system-health/', AdminSystemHealthView.as_view(), name='analytics-admin-system-health'),
+    path('healthz/', HealthzView.as_view(), name='healthz'),
+    path('ready/', ReadyView.as_view(), name='ready'),
 ]

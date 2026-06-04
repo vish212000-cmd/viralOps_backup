@@ -43,6 +43,12 @@ services:
     depends_on:
       - db
       - redis
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "check", "--deploy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   celery:
     build: ./backend
@@ -66,6 +72,12 @@ services:
     depends_on:
       - redis
       - db
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "check"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 
   frontend:
     build: ./frontend
@@ -75,5 +87,45 @@ services:
     depends_on:
       - backend
 
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: viralops-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    ports:
+      - '9090:9090'
+    depends_on:
+      - backend
+
+  grafana:
+    image: grafana/grafana-oss:10.1.5
+    container_name: viralops-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-viralops_grafana_pwd}
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - '3000:3000'
+    depends_on:
+      - prometheus
+
 volumes:
   mysql_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  default:
+    name: viralops-network
+
