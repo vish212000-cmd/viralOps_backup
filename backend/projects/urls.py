@@ -92,6 +92,7 @@ urlpatterns = [
     path('orgs/<str:org_slug>/projects/<int:project_id>/assets/<int:pk>/toggle_favorite/', GeneratedAssetViewSet.as_view({'post': 'toggle_favorite'}), name='asset-toggle-favorite'),
     path('orgs/<str:org_slug>/projects/<int:project_id>/assets/<int:pk>/save_version/', GeneratedAssetViewSet.as_view({'post': 'save_version'}), name='asset-save-version'),
     path('orgs/<str:org_slug>/projects/<int:project_id>/assets/<int:pk>/regenerate/', GeneratedAssetViewSet.as_view({'post': 'regenerate'}), name='asset-regenerate'),
+    path('orgs/<str:org_slug>/projects/<int:project_id>/assets/<int:pk>/publish/', GeneratedAssetViewSet.as_view({'post': 'publish'}), name='asset-publish'),
     
     # Templates
     path('orgs/<str:org_slug>/templates/', template_list, name='template-list'),

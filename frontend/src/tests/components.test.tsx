@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { api } from '../utils/api';
 
 // Import design system components
@@ -263,6 +263,7 @@ describe('Legal Policies Pages', () => {
 });
 
 const GoogleCallback = React.lazy(() => import('../pages/GoogleCallback'));
+const ProjectDetails = React.lazy(() => import('../pages/ProjectDetails'));
 
 describe('Google OAuth Callback Page', () => {
   it('renders loading state first and exchanges code', async () => {
@@ -307,5 +308,74 @@ describe('Google OAuth Callback Page', () => {
 
     expect(await screen.findByText('Authentication Error')).toBeInTheDocument();
     expect(screen.getByText(/access_denied/i)).toBeInTheDocument();
+  });
+});
+
+describe('Project Details Page', () => {
+  it('renders project details, tabs, and publish action', async () => {
+    const mockGet = vi.spyOn(api, 'get').mockImplementation((url) => {
+      if (url.includes('/assets/')) {
+        return Promise.resolve([
+          {
+            id: 1,
+            project: 1,
+            type: 'HOOK',
+            platform: 'MULTI',
+            content: 'This is a hook asset.',
+            is_favorite: false,
+            publish_records: []
+          }
+        ]);
+      }
+      if (url.includes('/sources/')) {
+        return Promise.resolve([
+          {
+            id: 1,
+            project: 1,
+            type: 'VIDEO',
+            title: 'AI Video',
+            status: 'COMPLETED',
+            file_name: 'test.mp4',
+            text_content: 'This is the transcription text.'
+          }
+        ]);
+      }
+      if (url.includes('/projects/')) {
+        return Promise.resolve({
+          id: 1,
+          name: 'Social Launch Video',
+          description: 'A video detailing the new AI strategy.',
+          status: 'COMPLETED',
+          created_at: '',
+          updated_at: ''
+        });
+      }
+      return Promise.resolve([]);
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/projects/1']}>
+        <ToastProvider>
+          <React.Suspense fallback={<div>Loading...</div>}>
+            <Routes>
+              <Route path="/projects/:projectId" element={<ProjectDetails />} />
+            </Routes>
+          </React.Suspense>
+        </ToastProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Social Launch Video')).toBeInTheDocument();
+    expect(screen.getByText('This is a hook asset.')).toBeInTheDocument();
+    
+    const publishBtn = screen.getByTitle('Publish Asset');
+    expect(publishBtn).toBeInTheDocument();
+
+    fireEvent.click(publishBtn);
+    expect(screen.getByText('Publish Asset to Social')).toBeInTheDocument();
+    expect(screen.getByText('Twitter / X')).toBeInTheDocument();
+    expect(screen.getByText('YouTube Shorts')).toBeInTheDocument();
+
+    mockGet.mockRestore();
   });
 });

@@ -4,7 +4,7 @@ from organizations.models import Organization, Membership
 from .models import (
     Project, SourceInput, TranscriptRecord, ProcessingJob,
     GeneratedAsset, GeneratedAssetVersion, Template, MemoryRecord,
-    UsageEvent, AuditLog
+    UsageEvent, AuditLog, SocialPublishRecord
 )
 
 User = get_user_model()
@@ -79,7 +79,10 @@ class SourceInputSerializer(serializers.ModelSerializer):
                 
         elif stype in ['ARTICLE', 'TRANSCRIPT', 'SCRIPT']:
             text = data.get('text_content', '').strip()
-            if not text:
+            url = data.get('source_url', '').strip()
+            if stype == 'ARTICLE' and url:
+                pass
+            elif not text:
                 raise serializers.ValidationError({"text_content": "Text content cannot be empty for text-based sources."})
                 
         elif stype == 'PDF':
@@ -107,12 +110,21 @@ class GeneratedAssetVersionSerializer(serializers.ModelSerializer):
         fields = ('id', 'asset', 'content', 'edited_by', 'edited_by_username', 'created_at')
         read_only_fields = ('edited_by',)
 
+class SocialPublishRecordSerializer(serializers.ModelSerializer):
+    published_by_username = serializers.CharField(source='published_by.username', read_only=True)
+
+    class Meta:
+        model = SocialPublishRecord
+        fields = ('id', 'asset', 'platform', 'status', 'published_url', 'error_message', 'published_by', 'published_by_username', 'created_at', 'updated_at')
+        read_only_fields = ('published_by', 'status', 'published_url', 'error_message')
+
 class GeneratedAssetSerializer(serializers.ModelSerializer):
     versions = GeneratedAssetVersionSerializer(many=True, read_only=True)
+    publish_records = SocialPublishRecordSerializer(many=True, read_only=True)
 
     class Meta:
         model = GeneratedAsset
-        fields = ('id', 'project', 'type', 'platform', 'content', 'metadata', 'is_favorite', 'created_at', 'updated_at', 'versions')
+        fields = ('id', 'project', 'type', 'platform', 'content', 'metadata', 'is_favorite', 'created_at', 'updated_at', 'versions', 'publish_records')
         read_only_fields = ('project',)
 
 class TemplateSerializer(serializers.ModelSerializer):

@@ -20,15 +20,30 @@ def generate_social_assets(title, source_type, content_text, memory_settings=Non
     # Structure memory/preferences into the prompt
     memory_prompt = ""
     if memory_settings:
-        brand_tone = memory_settings.get('BRAND_TONE', 'Professional, engaging, and authoritative')
-        style_guide = memory_settings.get('STYLE_GUIDE', 'Clear, clean formatting, limit emoji use')
-        preferred_hooks = memory_settings.get('PREFERRED_HOOKS', '')
+        brand_tone_val = memory_settings.get('BRAND_TONE')
+        if isinstance(brand_tone_val, dict):
+            brand_tone = brand_tone_val.get('tone', 'Professional, engaging, and authoritative')
+        else:
+            brand_tone = brand_tone_val or 'Professional, engaging, and authoritative'
+            
+        style_guide_val = memory_settings.get('STYLE_GUIDE')
+        if isinstance(style_guide_val, dict):
+            style_guide = style_guide_val.get('guide', 'Clear, clean formatting, limit emoji use')
+        else:
+            style_guide = style_guide_val or 'Clear, clean formatting, limit emoji use'
+            
+        preferred_hooks_val = memory_settings.get('PREFERRED_HOOKS')
+        if isinstance(preferred_hooks_val, dict):
+            preferred_hooks = preferred_hooks_val.get('hooks', '')
+        else:
+            preferred_hooks = preferred_hooks_val or ''
         
         memory_prompt = f"""
         Tone of Voice: {brand_tone}
         Style Guide: {style_guide}
         Preferred Hooks Style: {preferred_hooks}
         """
+
 
     # Structured prompt requesting JSON output
     prompt = f"""

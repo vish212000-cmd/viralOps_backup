@@ -174,3 +174,28 @@ class AuditLog(models.Model):
     def __str__(self):
         user_str = self.user.username if self.user else "System"
         return f"{user_str} performed {self.action} @ {self.created_at}"
+
+class SocialPublishRecord(models.Model):
+    PLATFORM_CHOICES = [
+        ('TWITTER', 'Twitter / X'),
+        ('YOUTUBE', 'YouTube Shorts'),
+        ('TIKTOK', 'TikTok'),
+        ('INSTAGRAM', 'Instagram Reels'),
+    ]
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('SUCCESS', 'Success'),
+        ('FAILED', 'Failed'),
+    ]
+    asset = models.ForeignKey(GeneratedAsset, on_delete=models.CASCADE, related_name='publish_records')
+    platform = models.CharField(max_length=20, choices=PLATFORM_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    published_url = models.URLField(blank=True, default='')
+    error_message = models.TextField(blank=True, default='')
+    published_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='publish_records')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Publish {self.asset.id} to {self.platform} ({self.status})"
+

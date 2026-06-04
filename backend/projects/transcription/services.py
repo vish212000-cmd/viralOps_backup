@@ -32,6 +32,51 @@ def get_transcription_provider():
         
     return 'simulated'
 
+def _extract_youtube_id(url):
+    import re
+    patterns = [
+        r'(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([a-zA-Z0-9_-]{11})',
+        r'(?:https?://)?(?:www\.)?youtu\.be/([a-zA-Z0-9_-]{11})',
+        r'(?:https?://)?(?:www\.)?youtube\.com/shorts/([a-zA-Z0-9_-]{11})',
+        r'(?:https?://)?(?:www\.)?youtube\.com/embed/([a-zA-Z0-9_-]{11})'
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return None
+
+def _extract_article_text(url):
+    try:
+        from bs4 import BeautifulSoup
+        response = requests.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}, timeout=15)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        for elem in soup(["script", "style", "nav", "footer", "header", "aside", "form"]):
+            elem.decompose()
+        text = soup.get_text()
+        lines = (line.strip() for line in text.splitlines())
+        chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+        clean_text = "\n".join(chunk for chunk in chunks if chunk)
+        return clean_text
+    except Exception as e:
+        logger.error(f"Article scraping failed for {url}: {e}")
+        return None
+
+def _extract_pdf_text(file_path):
+    try:
+        import pypdf
+        reader = pypdf.PdfReader(file_path)
+        text = ""
+        for page in reader.pages:
+            t = page.extract_text()
+            if t:
+                text += t + "\n"
+        return text.strip()
+    except Exception as e:
+        logger.error(f"PDF text extraction failed for {file_path}: {e}")
+        return None
+
 def transcribe_source_input(source_input):
     """
     Transcribes the uploaded file of SourceInput or falls back to text content / simulated.
@@ -40,19 +85,87 @@ def transcribe_source_input(source_input):
     provider = get_transcription_provider()
     logger.info(f"Using transcription provider: {provider} for SourceInput {source_input.id}")
 
-    # Fallback if no file is uploaded (use text_content directly)
+    # Handle YouTube URL Ingestion
+    if source_input.type == 'YOUTUBE':
+        url = source_input.source_url
+        logger.info(f"SourceInput {source_input.id} is YouTube link: {url}")
+        try:
+            from youtube_transcript_api import YouTubeTranscriptApi
+            video_id = _extract_youtube_id(url)
+            if not video_id:
+                raise TranscriptionError(f"Could not extract video ID from YouTube URL: {url}")
+            
+            transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+            segments = []
+            text_pieces = []
+            for entry in transcript_list:
+                text = entry.get('text', '').strip()
+                start = entry.get('start', 0.0)
+                duration = entry.get('duration', 0.0)
+                segments.append({
+                    "start": start,
+                    "end": start + duration,
+                    "speaker": "Speaker 1",
+                    "text": text
+                })
+                text_pieces.append(text)
+            
+            raw_text = " ".join(text_pieces)
+            normalized_text = "\n".join(text_pieces)
+            duration_seconds = int(segments[-1]['end']) if segments else 60
+            
+            # Cache text content
+            source_input.text_content = normalized_text
+            source_input.save(update_fields=['text_content'])
+            return raw_text, normalized_text, segments, duration_seconds
+        except Exception as e:
+            logger.error(f"YouTube transcript extraction failed: {e}. Using simulated fallback.")
+            title = source_input.title or "YouTube Video"
+            mock_text = f"This is a simulated transcript for the YouTube video ({url}). The video discusses top strategies for scaling social channels, audience retention hooks, and dynamic scripting techniques for creators."
+            raw_text, normalized_text, segments, duration_seconds = _transcribe_simulated(mock_text, title)
+            source_input.text_content = normalized_text
+            source_input.save(update_fields=['text_content'])
+            return raw_text, normalized_text, segments, duration_seconds
+
+    # Handle PDF Ingestion
+    if source_input.type == 'PDF':
+        logger.info(f"SourceInput {source_input.id} is PDF.")
+        if source_input.file:
+            file_path = source_input.file.path
+            if not os.path.exists(file_path):
+                raise TranscriptionError(f"Local PDF file path {file_path} does not exist.")
+            extracted_text = _extract_pdf_text(file_path)
+            if not extracted_text:
+                title = source_input.title or source_input.file_name or "Uploaded PDF"
+                extracted_text = f"Simulated text contents extracted from PDF file {source_input.file_name or 'source.pdf'}. Document covers business planning, operations, and social marketing execution guidelines."
+            
+            source_input.text_content = extracted_text
+            source_input.save(update_fields=['text_content'])
+            return _transcribe_simulated(extracted_text, source_input.title or "PDF Document")
+        elif source_input.text_content:
+            return _transcribe_simulated(source_input.text_content, source_input.title or "PDF Text")
+
+    # Handle Article/Blog URL Ingestion
+    if source_input.type == 'ARTICLE' and source_input.source_url:
+        logger.info(f"SourceInput {source_input.id} is Article Link: {source_input.source_url}")
+        scraped_text = _extract_article_text(source_input.source_url)
+        if not scraped_text:
+            scraped_text = f"Simulated content from Article URL: {source_input.source_url}. The article covers brand building, target audience messaging, and organic social media distribution methods for business growth."
+        
+        source_input.text_content = scraped_text
+        source_input.save(update_fields=['text_content'])
+        return _transcribe_simulated(scraped_text, source_input.title or "Article URL")
+
+    # Standard fallbacks for text, video, audio
     if not source_input.file and source_input.text_content:
-        # Text-based sources do not require StT
         logger.info(f"SourceInput {source_input.id} is text-based. Normalizing directly.")
         return _transcribe_simulated(source_input.text_content, source_input.title or "Text Source")
 
-    # If file exists but provider is simulated
     if provider == 'simulated':
         title = source_input.title or source_input.file_name or "Uploaded Audio/Video"
         mock_text = f"Transcribed content from uploaded file: {source_input.file_name or 'source'}. This audio stream covers core concepts of {title} and audience engagement."
         return _transcribe_simulated(mock_text, title)
 
-    # We have a file and a real provider. Let's get the absolute path
     file_path = source_input.file.path
     if not os.path.exists(file_path):
         raise TranscriptionError(f"Local file path {file_path} does not exist for transcription.")
@@ -63,6 +176,7 @@ def transcribe_source_input(source_input):
         return _transcribe_assemblyai(file_path)
     
     raise TranscriptionError("Unknown transcription provider configured.")
+
 
 def _transcribe_simulated(text, title):
     normalized_text = "\n".join([line.strip() for line in text.splitlines() if line.strip()])

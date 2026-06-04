@@ -575,6 +575,104 @@ class MFATestCase(TestCase):
         self.assertIn('refresh', response.data)
 
 
+class IngestionAndSocialPublishTestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username='prodtester', email='prod@viralops.com', password='password123')
+        self.org = Organization.objects.create(name='Prod Org', slug='prod-org')
+        self.membership = Membership.objects.create(user=self.user, organization=self.org, role='MEMBER')
+        self.proj = Project.objects.create(organization=self.org, name='Prod Project')
+        
+        self.client.force_authenticate(user=self.user)
+        self.client.defaults['HTTP_X_ORG_SLUG'] = self.org.slug
+
+    def test_youtube_ingestion_flow(self):
+        url = reverse('source-list', kwargs={'org_slug': self.org.slug, 'project_id': self.proj.id})
+        response = self.client.post(url, {
+            'type': 'YOUTUBE',
+            'title': 'Engaging Video',
+            'source_url': 'https://youtube.com/watch?v=dQw4w9WgXcQ'
+        })
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        source_id = response.data['id']
+        source = SourceInput.objects.get(id=source_id)
+        
+        from projects.transcription.services import transcribe_source_input
+        raw, normalized, segments, duration = transcribe_source_input(source)
+        
+        self.assertIn("simulated transcript", raw.lower())
+        self.assertGreaterEqual(len(segments), 1)
+        self.assertGreater(duration, 0)
+        
+        source.refresh_from_db()
+        self.assertIn("simulated transcript", source.text_content.lower())
+
+    def test_article_url_ingestion_flow(self):
+        url = reverse('source-list', kwargs={'org_slug': self.org.slug, 'project_id': self.proj.id})
+        response = self.client.post(url, {
+            'type': 'ARTICLE',
+            'title': 'Test Article Link',
+            'source_url': 'https://example.com/some-article'
+        })
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        source_id = response.data['id']
+        source = SourceInput.objects.get(id=source_id)
+        
+        from projects.transcription.services import transcribe_source_input
+        raw, normalized, segments, duration = transcribe_source_input(source)
+        
+        self.assertIn("simulated content", raw.lower())
+        self.assertGreater(duration, 0)
+        
+        source.refresh_from_db()
+        self.assertIn("simulated content", source.text_content.lower())
+
+    def test_pdf_file_ingestion_flow(self):
+        url = reverse('source-list', kwargs={'org_slug': self.org.slug, 'project_id': self.proj.id})
+        response = self.client.post(url, {
+            'type': 'PDF',
+            'title': 'PDF Document',
+            'text_content': 'Manual PDF contents inside the document'
+        })
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        source_id = response.data['id']
+        source = SourceInput.objects.get(id=source_id)
+        
+        from projects.transcription.services import transcribe_source_input
+        raw, normalized, segments, duration = transcribe_source_input(source)
+        self.assertIn("manual pdf contents", raw.lower())
+        self.assertGreater(duration, 0)
+
+    def test_social_publish_api(self):
+        asset = GeneratedAsset.objects.create(
+            project=self.proj,
+            type='HOOK',
+            platform='MULTI',
+            content='This is a killer hook about content creation.'
+        )
+        
+        url = reverse('asset-publish', kwargs={'org_slug': self.org.slug, 'project_id': self.proj.id, 'pk': asset.id})
+        
+        response = self.client.post(url, {})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        response = self.client.post(url, {'platform': 'FACEBOOK'})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        response = self.client.post(url, {'platform': 'TWITTER'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        from projects.models import SocialPublishRecord
+        self.assertEqual(SocialPublishRecord.objects.count(), 1)
+        record = SocialPublishRecord.objects.first()
+        self.assertEqual(record.asset, asset)
+        self.assertEqual(record.platform, 'TWITTER')
+        self.assertEqual(record.status, 'SUCCESS')
+        self.assertIn('x.com', record.published_url)
+        self.assertEqual(record.published_by, self.user)
+
+
+
 
 
 

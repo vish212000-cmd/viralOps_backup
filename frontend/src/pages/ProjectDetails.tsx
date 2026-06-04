@@ -9,7 +9,8 @@ import { Badge } from '../components/design/Badge';
 import { Card } from '../components/design/Card';
 import { 
   ArrowLeft, Loader2, AlertTriangle, FileText, CheckCircle2,
-  Star, Edit2, RotateCw, Download, Save, History, Folder, Settings, Shield, LogOut, Sparkles
+  Star, Edit2, RotateCw, Download, Save, History, Folder, Settings, Shield, LogOut, Sparkles,
+  Share2, ExternalLink
 } from 'lucide-react';
 
 type TabType = 'hooks' | 'titles' | 'captions' | 'scripts' | 'ctas' | 'hashtags' | 'source';
@@ -35,6 +36,11 @@ export default function ProjectDetails() {
 
   // Regeneration state
   const [regeneratingId, setRegeneratingId] = useState<number | null>(null);
+
+  // Publishing state
+  const [publishingAsset, setPublishingAsset] = useState<GeneratedAsset | null>(null);
+  const [selectedPlatform, setSelectedPlatform] = useState<'TWITTER' | 'YOUTUBE' | 'TIKTOK' | 'INSTAGRAM'>('TWITTER');
+  const [isPublishing, setIsPublishing] = useState(false);
 
   const navigate = useNavigate();
   const orgSlug = api.orgSlug;
@@ -137,6 +143,25 @@ export default function ProjectDetails() {
       showToast('AI Regeneration failed. Check provider rate limits.', 'error');
     } finally {
       setRegeneratingId(null);
+    }
+  };
+
+  const handlePublishAsset = async () => {
+    if (!publishingAsset || !projectId) return;
+    setIsPublishing(true);
+    try {
+      const updatedAsset = await api.post(`/api/orgs/${orgSlug}/projects/${projectId}/assets/${publishingAsset.id}/publish/`, {
+        platform: selectedPlatform
+      }) as GeneratedAsset;
+      
+      setAssets(assets.map(a => a.id === publishingAsset.id ? updatedAsset : a));
+      showToast(`Asset successfully published to ${selectedPlatform}!`, 'success');
+      setPublishingAsset(null);
+    } catch (err) {
+      console.error(err);
+      showToast('Publishing failed. Please verify API configuration.', 'error');
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -358,6 +383,14 @@ export default function ProjectDetails() {
                             >
                               <RotateCw size={16} className={regeneratingId === asset.id ? 'spin' : ''} />
                             </Button>
+                            <Button 
+                              variant="secondary"
+                              onClick={() => setPublishingAsset(asset)}
+                              style={{ padding: '0.4rem', border: 'none' }}
+                              title="Publish Asset"
+                            >
+                              <Share2 size={16} />
+                            </Button>
                           </div>
                         </div>
 
@@ -392,6 +425,38 @@ export default function ProjectDetails() {
                                 </span>
                               )}
                             </div>
+
+                            {asset.publish_records && asset.publish_records.length > 0 && (
+                              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px dashed hsl(var(--border-muted) / 0.5)' }}>
+                                <h4 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--text-muted))', marginBottom: '0.5rem' }}>Publication History</h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                  {asset.publish_records.map(rec => (
+                                    <div key={rec.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', background: 'hsl(var(--bg-main) / 0.5)', padding: '0.4rem 0.6rem', borderRadius: '6px' }}>
+                                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                        <span style={{ fontWeight: 600 }}>{rec.platform}</span>
+                                        <span style={{ 
+                                          fontSize: '0.7rem', 
+                                          padding: '0.1rem 0.4rem', 
+                                          borderRadius: '4px',
+                                          background: rec.status === 'SUCCESS' ? 'hsl(var(--success) / 0.15)' : 'hsl(var(--danger) / 0.15)',
+                                          color: rec.status === 'SUCCESS' ? 'hsl(var(--success))' : 'hsl(var(--danger))'
+                                        }}>
+                                          {rec.status}
+                                        </span>
+                                      </span>
+                                      {rec.status === 'SUCCESS' && rec.published_url && (
+                                        <a href={rec.published_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', color: 'hsl(var(--accent-primary))', textDecoration: 'none' }}>
+                                          View Post <ExternalLink size={12} />
+                                        </a>
+                                      )}
+                                      {rec.status === 'FAILED' && (
+                                        <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{rec.error_message}</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -404,6 +469,85 @@ export default function ProjectDetails() {
           </div>
         )}
       </main>
+
+      {/* Social Publishing Modal */}
+      {publishingAsset && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0, 0, 0, 0.7)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <Card style={{
+            width: '100%',
+            maxWidth: '500px',
+            padding: '2.5rem',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+            border: '1px solid hsl(var(--border-muted) / 0.3)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.5rem',
+            background: 'hsl(var(--card) / 0.9)'
+          }}>
+            <div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.25rem' }}>Publish Asset to Social</h3>
+              <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.85rem' }}>Select the target destination to publish this asset.</p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'hsl(var(--text-muted))' }}>Select Platform</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                {[
+                  { id: 'TWITTER', label: 'Twitter / X' },
+                  { id: 'YOUTUBE', label: 'YouTube Shorts' },
+                  { id: 'TIKTOK', label: 'TikTok' },
+                  { id: 'INSTAGRAM', label: 'Instagram Reels' }
+                ].map(plat => (
+                  <Button
+                    key={plat.id}
+                    type="button"
+                    variant={selectedPlatform === plat.id ? 'primary' : 'secondary'}
+                    onClick={() => setSelectedPlatform(plat.id as any)}
+                    style={{ fontSize: '0.85rem', padding: '0.5rem' }}
+                  >
+                    {plat.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'hsl(var(--text-muted))' }}>Content Preview</label>
+              <div style={{ 
+                background: 'hsl(var(--bg-main) / 0.5)', 
+                padding: '1rem', 
+                borderRadius: '8px', 
+                fontSize: '0.9rem', 
+                maxHeight: '120px', 
+                overflowY: 'auto',
+                border: '1px solid hsl(var(--border-muted) / 0.5)',
+                whiteSpace: 'pre-wrap'
+              }}>
+                {publishingAsset.content}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', borderTop: '1px solid hsl(var(--border-muted))', paddingTop: '1.25rem' }}>
+              <Button variant="secondary" onClick={() => setPublishingAsset(null)} disabled={isPublishing}>Cancel</Button>
+              <Button onClick={handlePublishAsset} loading={isPublishing}>
+                Confirm & Publish
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

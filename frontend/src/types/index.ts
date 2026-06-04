@@ -94,6 +94,22 @@ export interface GeneratedAssetVersion {
   created_at: string;
 }
 
+export type PublishPlatformType = 'TWITTER' | 'YOUTUBE' | 'TIKTOK' | 'INSTAGRAM';
+export type PublishStatusType = 'PENDING' | 'SUCCESS' | 'FAILED';
+
+export interface SocialPublishRecord {
+  id: number;
+  asset: number;
+  platform: PublishPlatformType;
+  status: PublishStatusType;
+  published_url: string;
+  error_message: string;
+  published_by: number | null;
+  published_by_username?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface GeneratedAsset {
   id: number;
   project: number;
@@ -105,6 +121,7 @@ export interface GeneratedAsset {
   created_at: string;
   updated_at: string;
   versions?: GeneratedAssetVersion[];
+  publish_records?: SocialPublishRecord[];
 }
 
 export type TemplateType = 'HOOK' | 'CTA' | 'SCRIPT';
