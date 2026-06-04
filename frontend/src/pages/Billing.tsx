@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { api } from '../utils/api';
+import { billingApi } from '../services/billingApi';
 import Sidebar from '../components/Sidebar';
 import { Card } from '../components/design/Card';
 import { Button } from '../components/design/Button';
@@ -15,11 +15,10 @@ import {
 interface Plan {
   id: number;
   name: string;
-  price: string;
-  currency: string;
-  interval: string;
-  quota_projects: number;
-  quota_generations: number;
+  price_monthly: string;
+  price_yearly: string;
+  max_projects: number;
+  max_generations_per_month: number;
 }
 
 interface Subscription {
@@ -87,7 +86,7 @@ export default function Billing() {
   const [gstin, setGstin] = useState('');
 
   // Local dialog/modal for simulating payment in offline runs
-  const [mockCheckoutData, setMockCheckoutData] = useState<{ subscription_id: string; amount: number } | null>(null);
+  const [mockCheckoutData, setMockCheckoutData] = useState<{ subscription_id: string; amount: number; plan_id: number } | null>(null);
 
   useEffect(() => {
     if (currentOrg) {
@@ -99,23 +98,23 @@ export default function Billing() {
     setLoading(true);
     try {
       // 1. Fetch Plans
-      const plansList = await api.get('/api/billing/plans/') as Plan[];
+      const plansList = await billingApi.getPlans() as unknown as Plan[];
       setPlans(plansList);
 
       // 2. Fetch Active Subscription & Usage Status
-      const statusRes = await api.get(`/api/billing/orgs/${currentOrg?.slug}/status/`) as { subscription: Subscription; usage: Usage };
-      setSubscription(statusRes?.subscription || null);
-      setUsage(statusRes?.usage || null);
+      const subRes = await billingApi.getMySubscription() as any;
+      setSubscription(subRes || null);
+      setUsage(subRes?.usage || null);
 
       // Set form details
-      setLegalName(statusRes?.subscription?.legal_name || '');
-      setBillingContact(statusRes?.subscription?.billing_contact || '');
-      setBillingEmail(statusRes?.subscription?.billing_email || statusRes?.subscription?.organization?.billing_email || user?.email || '');
-      setBillingAddress(statusRes?.subscription?.billing_address || '');
-      setGstin(statusRes?.subscription?.gstin || '');
+      setLegalName(subRes?.legal_name || '');
+      setBillingContact(subRes?.billing_contact || '');
+      setBillingEmail(subRes?.billing_email || user?.email || '');
+      setBillingAddress(subRes?.billing_address || '');
+      setGstin(subRes?.gstin || '');
 
       // 3. Fetch Payment and Invoice Records
-      const historyRes = await api.get(`/api/billing/orgs/${currentOrg?.slug}/history/`) as { payments: PaymentRecord[]; invoices: InvoiceRecord[] };
+      const historyRes = await billingApi.getHistory();
       setHistory(historyRes);
     } catch (err) {
       console.error(err);
@@ -148,9 +147,7 @@ export default function Billing() {
 
     setSubmitting(true);
     try {
-      // Just post mock checkout with current plan to save new details
-      await api.post(`/api/billing/orgs/${currentOrg?.slug}/status/`, {
-        plan_id: subscription?.plan.id,
+      await billingApi.updateDetails({
         legal_name: legalName,
         billing_contact: billingContact,
         billing_email: billingEmail,
@@ -168,21 +165,14 @@ export default function Billing() {
   };
 
   const handleCheckout = async (plan: Plan) => {
-    if (plan.id === subscription?.plan.id && subscription.status === 'ACTIVE') {
+    if (plan.id === subscription?.plan?.id && subscription.status === 'ACTIVE') {
       showToast('You are already subscribed to this plan!', 'info');
       return;
     }
 
     setSubmitting(true);
     try {
-      const res = await api.post(`/api/billing/orgs/${currentOrg?.slug}/status/`, {
-        plan_id: plan.id,
-        legal_name: legalName,
-        billing_contact: billingContact,
-        billing_email: billingEmail,
-        billing_address: billingAddress,
-        gstin: gstin.toUpperCase(),
-      });
+      const res = await billingApi.createSubscription(plan.id) as any;
 
       if (res.status === 'ACTIVE') {
         showToast('Successfully switched to ' + plan.name + ' plan!', 'success');
@@ -196,8 +186,9 @@ export default function Billing() {
       if (!scriptLoaded || res.key_id === 'rzp_test_mock_key') {
         // Fallback: Sandbox Simulation Mode (for local development or when Razorpay script is blocked)
         setMockCheckoutData({
-          subscription_id: res.subscription_id,
-          amount: plan.price as any
+          subscription_id: res.order_id,
+          amount: parseFloat(plan.price_monthly),
+          plan_id: plan.id
         });
         setSubmitting(false);
         return;
@@ -205,17 +196,20 @@ export default function Billing() {
 
       const options = {
         key: res.key_id,
-        subscription_id: res.subscription_id,
+        order_id: res.order_id,
+        amount: res.amount,
+        currency: res.currency || 'INR',
         name: 'ViralOps Content Engine',
         description: `Upgrade to ${plan.name} Plan`,
         handler: async (response: any) => {
           setSubmitting(true);
           try {
-            await api.post(`/api/billing/orgs/${currentOrg?.slug}/verify-payment/`, {
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_subscription_id: response.razorpay_subscription_id,
-              razorpay_signature: response.razorpay_signature,
-            });
+            await billingApi.verifyPayment(
+              res.order_id,
+              response.razorpay_payment_id,
+              response.razorpay_signature,
+              plan.id
+            );
             showToast('Subscription payment processed successfully!', 'success');
             loadBillingData();
           } catch (err) {
@@ -249,11 +243,12 @@ export default function Billing() {
     if (!mockCheckoutData) return;
     setSubmitting(true);
     try {
-      await api.post(`/api/billing/orgs/${currentOrg?.slug}/verify-payment/`, {
-        razorpay_payment_id: `pay_mock_${Date.now()}`,
-        razorpay_subscription_id: mockCheckoutData.subscription_id,
-        razorpay_signature: 'mock_signature',
-      });
+      await billingApi.verifyPayment(
+        mockCheckoutData.subscription_id,
+        `pay_mock_${Date.now()}`,
+        'mock_signature',
+        mockCheckoutData.plan_id
+      );
       showToast('Mock Payment Simulated & verified successfully!', 'success');
       setMockCheckoutData(null);
       loadBillingData();
@@ -270,7 +265,7 @@ export default function Billing() {
     
     setSubmitting(true);
     try {
-      await api.post(`/api/billing/orgs/${currentOrg?.slug}/cancel/`);
+      await billingApi.cancelSubscription('User requested cancellation');
       showToast('Subscription cancelled successfully.', 'success');
       loadBillingData();
     } catch (err) {
@@ -374,7 +369,7 @@ export default function Billing() {
   }
 
   // Quotas Calculations
-  const activePlanName = subscription?.plan.name || 'Free Trial';
+  const activePlanName = subscription?.plan?.name || 'Free Trial';
   const subStatus = subscription?.status || 'ACTIVE';
   const maxProjects = usage?.limit_projects || 3;
   const currentProjects = usage?.projects || 0;
@@ -454,18 +449,18 @@ export default function Billing() {
                   )}
                   <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem' }}>{p.name}</h3>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem', marginBottom: '1.5rem' }}>
-                    <span style={{ fontSize: '2.25rem', fontWeight: 800 }}>₹{parseInt(p.price)}</span>
-                    <span style={{ color: 'hsl(var(--text-muted))', fontSize: '0.9rem' }}>/ {p.interval === 'MONTHLY' ? 'mo' : 'yr'}</span>
+                    <span style={{ fontSize: '2.25rem', fontWeight: 800 }}>₹{parseInt(p.price_monthly)}</span>
+                    <span style={{ color: 'hsl(var(--text-muted))', fontSize: '0.9rem' }}>/ mo</span>
                   </div>
 
                   <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 2rem 0', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.9rem', color: 'hsl(var(--text-muted))' }}>
                     <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <CheckCircle2 size={16} color="hsl(var(--success))" /> 
-                      {p.quota_projects === 999999 ? 'Unlimited Projects' : `${p.quota_projects} Projects Limit`}
+                      {p.max_projects === 999999 ? 'Unlimited Projects' : `${p.max_projects} Projects Limit`}
                     </li>
                     <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <CheckCircle2 size={16} color="hsl(var(--success))" /> 
-                      {p.quota_generations === 999999 ? 'Unlimited AI Content Generations' : `${p.quota_generations} Generations/month`}
+                      {p.max_generations_per_month === 999999 ? 'Unlimited AI Content Generations' : `${p.max_generations_per_month} Generations/month`}
                     </li>
                     <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <CheckCircle2 size={16} color="hsl(var(--success))" /> 

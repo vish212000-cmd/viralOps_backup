@@ -1,5 +1,3 @@
-import hmac
-import hashlib
 import json
 import logging
 from django.utils import timezone
@@ -9,412 +7,405 @@ from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, permissions, status, decorators, views
 from rest_framework.response import Response
 
-from organizations.permissions import IsOrganizationMember, IsOrganizationAdmin
 from organizations.mixins import TenantScopedQuerysetMixin
-from projects.models import Project, GeneratedAsset, AuditLog, UsageEvent
-from .models import Plan, WorkspaceSubscription, PaymentRecord, InvoiceRecord, WebhookEventLog
-from .serializers import PlanSerializer, WorkspaceSubscriptionSerializer, PaymentRecordSerializer, InvoiceRecordSerializer
+from organizations.permissions import IsOrganizationMember
+from projects.models import Project, AuditLog
+from .models import SubscriptionPlan, Subscription, Invoice, PaymentTransaction
+from .serializers import (
+    SubscriptionPlanSerializer, SubscriptionSerializer, InvoiceSerializer,
+    PaymentTransactionSerializer, CreateSubscriptionSerializer, VerifyPaymentSerializer
+)
+from .services.razorpay_service import RazorpayService
 
 logger = logging.getLogger(__name__)
 
-# Seeding utility to ensure default plans are always available
 def get_or_create_default_plans():
     plans = [
         {
-            'name': 'Free Trial',
+            'name': 'FREE',
+            'price_monthly': 0.00,
+            'price_yearly': 0.00,
             'razorpay_plan_id': 'plan_mock_free',
-            'price': 0.00,
-            'interval': 'MONTHLY',
-            'quota_projects': 3,
-            'quota_generations': 10
+            'max_projects': 5,
+            'max_generations_per_month': 100,
+            'max_storage_gb': 10,
+            'ai_brand_tone': False,
+            'custom_domain': False,
+            'priority_support': False
         },
         {
-            'name': 'Creator Pro',
+            'name': 'PRO',
+            'price_monthly': 499.00,
+            'price_yearly': 4990.00,
             'razorpay_plan_id': 'plan_mock_pro',
-            'price': 999.00,
-            'interval': 'MONTHLY',
-            'quota_projects': 15,
-            'quota_generations': 100
+            'max_projects': 15,
+            'max_generations_per_month': 1000,
+            'max_storage_gb': 50,
+            'ai_brand_tone': True,
+            'custom_domain': False,
+            'priority_support': False
         },
         {
-            'name': 'Enterprise',
+            'name': 'TEAMS',
+            'price_monthly': 1499.00,
+            'price_yearly': 14990.00,
+            'razorpay_plan_id': 'plan_mock_teams',
+            'max_projects': 50,
+            'max_generations_per_month': 5000,
+            'max_storage_gb': 200,
+            'ai_brand_tone': True,
+            'custom_domain': True,
+            'priority_support': True
+        },
+        {
+            'name': 'ENTERPRISE',
+            'price_monthly': 5000.00,
+            'price_yearly': 50000.00,
             'razorpay_plan_id': 'plan_mock_ent',
-            'price': 4999.00,
-            'interval': 'MONTHLY',
-            'quota_projects': 999999, # unlimited
-            'quota_generations': 999999 # unlimited
+            'max_projects': 999999,
+            'max_generations_per_month': 999999,
+            'max_storage_gb': 999999,
+            'ai_brand_tone': True,
+            'custom_domain': True,
+            'priority_support': True
         }
     ]
     for p in plans:
-        Plan.objects.get_or_create(
+        SubscriptionPlan.objects.get_or_create(
             name=p['name'],
-            defaults={
-                'razorpay_plan_id': p['razorpay_plan_id'],
-                'price': p['price'],
-                'interval': p['interval'],
-                'quota_projects': p['quota_projects'],
-                'quota_generations': p['quota_generations']
-            }
+            defaults=p
         )
 
 class PlanViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Plan.objects.filter(is_active=True).order_by('price')
-    serializer_class = PlanSerializer
+    queryset = SubscriptionPlan.objects.filter(is_active=True)
+    serializer_class = SubscriptionPlanSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def list(self, request, *args, **kwargs):
-        # Dynamically seed plans on list check so first run works cleanly
         get_or_create_default_plans()
         return super().list(request, *args, **kwargs)
 
-class BillingStatusView(TenantScopedQuerysetMixin, views.APIView):
+class MySubscriptionViewSet(TenantScopedQuerysetMixin, viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated, IsOrganizationMember]
 
-    def get(self, request, org_slug=None):
-        org = self.get_organization()
+    def list(self, request):
+        return self.retrieve(request)
+
+    def retrieve(self, request, pk=None):
         get_or_create_default_plans()
+        tenant = self.get_organization()
         
-        # Get subscription or assign default Free Trial
-        subscription, created = WorkspaceSubscription.objects.get_or_create(
-            organization=org,
+        # Get or create subscription so we return a valid status instead of 404
+        sub, created = Subscription.objects.get_or_create(
+            tenant=tenant,
+            user=request.user,
             defaults={
-                'plan': Plan.objects.filter(price=0).first() or Plan.objects.first(),
+                'plan': SubscriptionPlan.objects.filter(price_monthly=0).first() or SubscriptionPlan.objects.first(),
                 'status': 'ACTIVE',
-                'start_date': timezone.now(),
-                'end_date': timezone.now() + timezone.timedelta(days=30)
+                'current_period_start': timezone.now(),
+                'current_period_end': timezone.now() + timezone.timedelta(days=30)
             }
         )
         
-        # Aggregate current usage metrics
-        proj_count = Project.objects.filter(organization=org).count()
+        data = SubscriptionSerializer(sub).data
+        data['has_subscription'] = True
+        data['usage'] = self._get_usage(tenant, sub)
+        return Response(data)
+    
+    def create(self, request):
+        # Create Razorpay order for plan upgrade
+        get_or_create_default_plans()
+        tenant = self.get_organization()
+        serializer = CreateSubscriptionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        plan = SubscriptionPlan.objects.get(pk=serializer.validated_data['plan_id'])
         
+        # Save compliance details if provided
+        sub, created = Subscription.objects.get_or_create(
+            tenant=tenant,
+            user=request.user,
+            defaults={
+                'plan': SubscriptionPlan.objects.filter(price_monthly=0).first() or SubscriptionPlan.objects.first(),
+                'status': 'ACTIVE',
+                'current_period_start': timezone.now(),
+                'current_period_end': timezone.now() + timezone.timedelta(days=30)
+            }
+        )
+        sub.legal_name = request.data.get('legal_name', sub.legal_name)
+        sub.billing_contact = request.data.get('billing_contact', sub.billing_contact)
+        sub.billing_email = request.data.get('billing_email', sub.billing_email)
+        sub.billing_address = request.data.get('billing_address', sub.billing_address)
+        sub.gstin = request.data.get('gstin', sub.gstin)
+        sub.save()
+        
+        if plan.price_monthly == 0:
+            with transaction.atomic():
+                sub.plan = plan
+                sub.status = 'ACTIVE'
+                sub.razorpay_subscription_id = f"sub_free_{timezone.now().timestamp()}"
+                sub.current_period_start = timezone.now()
+                sub.current_period_end = timezone.now() + timezone.timedelta(days=30)
+                sub.cancelled_at = None
+                sub.save()
+            return Response({
+                'status': 'ACTIVE',
+                'message': 'Switched to Free plan successfully.'
+            }, status=status.HTTP_200_OK)
+        
+        amount = int(plan.price_monthly * 100)  # in paise
+        svc = RazorpayService()
+        customer_id = self._get_or_create_customer(request, tenant)
+        
+        order = svc.create_order(
+            amount, 'INR', customer_id, 
+            {'plan_id': plan.id, 'tenant_id': tenant.id}
+        )
+        return Response({
+            'order_id': order['id'], 
+            'amount': amount, 
+            'currency': 'INR',
+            'key_id': getattr(settings, 'RAZORPAY_KEY_ID', 'rzp_test_mock_key')
+        }, status=status.HTTP_201_CREATED)
+    
+    @decorators.action(detail=False, methods=['post'], url_path='verify')
+    def verify(self, request):
+        tenant = self.get_organization()
+        serializer = VerifyPaymentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        order_id = serializer.validated_data['order_id']
+        payment_id = serializer.validated_data['payment_id']
+        signature = serializer.validated_data['signature']
+        
+        svc = RazorpayService()
+        svc.verify_signature(order_id, payment_id, signature)
+        
+        plan_id = request.data.get('plan_id')
+        if not plan_id:
+            plan = SubscriptionPlan.objects.filter(price_monthly__gt=0).first() or SubscriptionPlan.objects.first()
+        else:
+            plan = get_object_or_404(SubscriptionPlan, id=plan_id)
+
+        with transaction.atomic():
+            # Update/activate subscription
+            sub, created = Subscription.objects.update_or_create(
+                tenant=tenant,
+                user=request.user,
+                defaults={
+                    'plan': plan,
+                    'status': 'ACTIVE',
+                    'razorpay_subscription_id': f"sub_verify_{timezone.now().timestamp()}",
+                    'current_period_start': timezone.now(),
+                    'current_period_end': timezone.now() + timezone.timedelta(days=30),
+                    'cancelled_at': None
+                }
+            )
+
+            # Record Invoice & Payment transaction
+            Invoice.objects.create(
+                tenant=tenant,
+                subscription=sub,
+                razorpay_invoice_id=f"inv_verify_{timezone.now().timestamp()}",
+                amount=plan.price_monthly,
+                status='PAID',
+                paid_at=timezone.now()
+            )
+
+            PaymentTransaction.objects.create(
+                tenant=tenant,
+                subscription=sub,
+                razorpay_payment_id=payment_id,
+                razorpay_order_id=order_id,
+                razorpay_signature=signature,
+                amount=plan.price_monthly,
+                status='CAPTURED'
+            )
+
+            # Audit logging
+            AuditLog.objects.create(
+                organization=tenant,
+                user=request.user,
+                action="SUBSCRIPTION_UPGRADED",
+                details={'plan': plan.name, 'payment_id': payment_id}
+            )
+
+        return Response({'status': 'active'}, status=status.HTTP_200_OK)
+    
+    @decorators.action(detail=False, methods=['post'], url_path='cancel')
+    def cancel(self, request):
+        tenant = self.get_organization()
+        with transaction.atomic():
+            try:
+                sub = Subscription.objects.select_for_update().get(user=request.user, tenant=tenant)
+                sub.status = 'CANCELLED'
+                sub.cancel_reason = request.data.get('reason', '')
+                sub.cancelled_at = timezone.now()
+                sub.save()
+                
+                # Log Audit
+                AuditLog.objects.create(
+                    organization=tenant,
+                    user=request.user,
+                    action="SUBSCRIPTION_CANCELLED",
+                    details={'plan': sub.plan.name}
+                )
+                return Response({'status': 'cancelled'}, status=status.HTTP_200_OK)
+            except Subscription.DoesNotExist:
+                return Response({'error': 'Subscription not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    @decorators.action(detail=False, methods=['post'], url_path='update-details')
+    def update_details(self, request):
+        tenant = self.get_organization()
+        sub, created = Subscription.objects.get_or_create(
+            tenant=tenant,
+            user=request.user,
+            defaults={
+                'plan': SubscriptionPlan.objects.filter(price_monthly=0).first() or SubscriptionPlan.objects.first(),
+                'status': 'ACTIVE',
+                'current_period_start': timezone.now(),
+                'current_period_end': timezone.now() + timezone.timedelta(days=30)
+            }
+        )
+        sub.legal_name = request.data.get('legal_name', sub.legal_name)
+        sub.billing_contact = request.data.get('billing_contact', sub.billing_contact)
+        sub.billing_email = request.data.get('billing_email', sub.billing_email)
+        sub.billing_address = request.data.get('billing_address', sub.billing_address)
+        sub.gstin = request.data.get('gstin', sub.gstin)
+        sub.save()
+        return Response(SubscriptionSerializer(sub).data)
+
+    @decorators.action(detail=False, methods=['get'], url_path='history')
+    def history(self, request):
+        tenant = self.get_organization()
+        invoices = Invoice.objects.filter(tenant=tenant).order_by('-created_at')
+        transactions = PaymentTransaction.objects.filter(tenant=tenant).order_by('-captured_at')
+        
+        return Response({
+            'invoices': InvoiceSerializer(invoices, many=True).data,
+            'payments': PaymentTransactionSerializer(transactions, many=True).data
+        })
+    
+    def _get_or_create_customer(self, request, tenant):
+        existing = Subscription.objects.filter(user=request.user, tenant=tenant)
+        if existing.exists() and existing.first().razorpay_customer_id:
+            return existing.first().razorpay_customer_id
+        svc = RazorpayService()
+        customer_id = svc.create_customer(
+            request.user.email, 
+            request.user.username or request.user.email
+        )
+        return customer_id
+    
+    def _get_usage(self, tenant, sub=None):
+        projects_count = Project.objects.filter(organization=tenant).count()
+        
+        from django.utils import timezone
         month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        gen_usage = UsageEvent.objects.filter(
-            organization=org,
+        
+        from projects.models import UsageEvent
+        generations_count = UsageEvent.objects.filter(
+            organization=tenant,
             event_type='AI_GENERATION',
             created_at__gte=month_start
         ).aggregate(total=models.Sum('quantity'))['total'] or 0
 
-        sub_data = WorkspaceSubscriptionSerializer(subscription).data
-        
-        return Response({
-            'subscription': sub_data,
-            'usage': {
-                'projects': proj_count,
-                'generations': gen_usage,
-                'limit_projects': subscription.plan.quota_projects,
-                'limit_generations': subscription.plan.quota_generations,
-            }
-        })
+        if sub:
+            limit_projects = sub.plan.max_projects
+            limit_generations = sub.plan.max_generations_per_month
+        else:
+            limit_projects = 5
+            limit_generations = 1000
 
-    def post(self, request, org_slug=None):
-        """
-        Creates a new checkout / subscription session.
-        """
-        org = self.get_organization()
-        plan_id = request.data.get('plan_id')
-        plan = get_object_or_404(Plan, id=plan_id)
+        return {
+            'projects': projects_count,
+            'generations': generations_count,
+            'limit_projects': limit_projects,
+            'limit_generations': limit_generations
+        }
 
-        # Pre-fill details from post payload
-        legal_name = request.data.get('legal_name', '')
-        billing_contact = request.data.get('billing_contact', '')
-        billing_email = request.data.get('billing_email', '')
-        billing_address = request.data.get('billing_address', '')
-        gstin = request.data.get('gstin', '')
-
-        # Retrieve/create active subscription object
-        subscription, created = WorkspaceSubscription.objects.get_or_create(
-            organization=org,
-            defaults={'plan': Plan.objects.filter(price=0).first() or plan}
-        )
-
-        # Update metadata details
-        subscription.legal_name = legal_name
-        subscription.billing_contact = billing_contact
-        subscription.billing_email = billing_email
-        subscription.billing_address = billing_address
-        subscription.gstin = gstin
-        subscription.save()
-
-        # If upgrading to a free plan, activate immediately
-        if plan.price == 0:
-            subscription.plan = plan
-            subscription.status = 'ACTIVE'
-            subscription.start_date = timezone.now()
-            subscription.end_date = timezone.now() + timezone.timedelta(days=30)
-            subscription.razorpay_subscription_id = None
-            subscription.save()
-            
-            AuditLog.objects.create(
-                organization=org,
-                user=request.user,
-                action="BILLING_UPGRADE_FREE",
-                details={"plan_id": plan.id}
-            )
-            return Response({'status': 'ACTIVE', 'message': 'Free subscription activated.'})
-
-        # Process Razorpay Paid Subscriptions
-        rzp_sub_id = f"sub_mock_{timezone.now().timestamp()}"
-        
-        # Attempt to create Razorpay session via SDK if keys are configured
-        if settings.RAZORPAY_KEY_ID and settings.RAZORPAY_KEY_SECRET:
-            try:
-                import razorpay
-                client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-                
-                # Setup payload for Razorpay subscription creation API
-                # In standard sandbox runs, use a pre-existing plan id or fallback
-                razorpay_plan_id = plan.razorpay_plan_id
-                if not razorpay_plan_id or razorpay_plan_id.startswith('plan_mock_'):
-                    # Retrieve plans or use plan_mock
-                    razorpay_plan_id = plan.razorpay_plan_id
-                
-                sub_payload = {
-                    "plan_id": razorpay_plan_id,
-                    "total_count": 12,
-                    "quantity": 1,
-                    "notes": {
-                        "organization_id": org.id,
-                        "org_slug": org.slug
-                    }
-                }
-                rzp_response = client.subscription.create(data=sub_payload)
-                rzp_sub_id = rzp_response['id']
-            except Exception as e:
-                logger.error(f"Razorpay Client creation error: {str(e)}")
-                # Return standard mock ID in debug local offline environments
-                if not settings.DEBUG:
-                    return Response({'error': 'Razorpay payment gateway connection failed.'}, status=status.HTTP_502_BAD_GATEWAY)
-
-        subscription.plan = plan
-        subscription.status = 'PENDING'
-        subscription.razorpay_subscription_id = rzp_sub_id
-        subscription.save()
-
-        return Response({
-            'subscription_id': rzp_sub_id,
-            'key_id': settings.RAZORPAY_KEY_ID or 'rzp_test_mock_key',
-            'amount': int(plan.price * 100) # amount in paise/cents
-        })
-
-class PaymentVerificationView(TenantScopedQuerysetMixin, views.APIView):
-    permission_classes = [permissions.IsAuthenticated, IsOrganizationMember]
-
-    def post(self, request, org_slug=None):
-        org = self.get_organization()
-        razorpay_payment_id = request.data.get('razorpay_payment_id')
-        razorpay_subscription_id = request.data.get('razorpay_subscription_id')
-        razorpay_signature = request.data.get('razorpay_signature')
-
-        if not razorpay_payment_id or not razorpay_subscription_id or not razorpay_signature:
-            return Response({'error': 'Missing required payment parameters.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Signature verification standard hmac validation
-        verified = False
-        secret = settings.RAZORPAY_KEY_SECRET or 'mock_secret'
-        msg = f"{razorpay_payment_id}|{razorpay_subscription_id}"
-        
-        generated_signature = hmac.new(
-            secret.encode('utf-8'),
-            msg.encode('utf-8'),
-            hashlib.sha256
-        ).hexdigest()
-
-        if generated_signature == razorpay_signature or razorpay_signature == 'mock_signature':
-            verified = True
-
-        if not verified:
-            return Response({'error': 'Payment signature validation failed.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        with transaction.atomic():
-            subscription = get_object_or_404(WorkspaceSubscription, razorpay_subscription_id=razorpay_subscription_id, organization=org)
-            subscription.status = 'ACTIVE'
-            subscription.start_date = timezone.now()
-            subscription.end_date = timezone.now() + timezone.timedelta(days=30)
-            subscription.save()
-
-            # Record Captured Payment
-            payment = PaymentRecord.objects.create(
-                organization=org,
-                razorpay_payment_id=razorpay_payment_id,
-                razorpay_order_id=request.data.get('razorpay_order_id', ''),
-                razorpay_signature=razorpay_signature,
-                amount=subscription.plan.price,
-                status='CAPTURED'
-            )
-
-            # Generate Tax Invoice Record (18% GST)
-            from decimal import Decimal
-            total_amount = subscription.plan.price
-            tax_amount = total_amount * Decimal('0.18')
-            
-            invoice_num = f"INV-{org.id}-{int(timezone.now().timestamp())}"
-            InvoiceRecord.objects.create(
-                subscription=subscription,
-                invoice_number=invoice_num,
-                amount=total_amount,
-                tax_amount=tax_amount,
-                gstin=subscription.gstin,
-                legal_name=subscription.legal_name,
-                billing_address=subscription.billing_address
-            )
-
-            AuditLog.objects.create(
-                organization=org,
-                user=request.user,
-                action="BILLING_UPGRADE_SUCCESS",
-                details={"plan_id": subscription.plan.id, "payment_id": payment.id}
-            )
-
-        return Response({
-            'status': 'ACTIVE',
-            'message': 'Subscription payment verified successfully.'
-        })
-
-class SubscriptionCancelView(TenantScopedQuerysetMixin, views.APIView):
-    permission_classes = [permissions.IsAuthenticated, IsOrganizationAdmin]
-
-    def post(self, request, org_slug=None):
-        org = self.get_organization()
-        subscription = get_object_or_404(WorkspaceSubscription, organization=org)
-        
-        # In production, communicate cancellation to Razorpay API if subscription ID is present
-        if subscription.razorpay_subscription_id and settings.RAZORPAY_KEY_ID and settings.RAZORPAY_KEY_SECRET:
-            try:
-                import razorpay
-                client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-                # Cancel immediately or cancel at end of cycle (default cancel_at_cycle_end=False)
-                client.subscription.cancel(subscription.razorpay_subscription_id, {"cancel_at_cycle_end": 0})
-            except Exception as e:
-                logger.error(f"Razorpay subscription cancellation failed: {str(e)}")
-
-        subscription.status = 'CANCELLED'
-        subscription.save()
-
-        AuditLog.objects.create(
-            organization=org,
-            user=request.user,
-            action="BILLING_CANCELLED",
-            details={"subscription_id": subscription.id}
-        )
-
-        return Response({'status': 'CANCELLED', 'message': 'Subscription cancelled successfully.'})
-
-class BillingHistoryView(TenantScopedQuerysetMixin, views.APIView):
-    permission_classes = [permissions.IsAuthenticated, IsOrganizationMember]
-
-    def get(self, request, org_slug=None):
-        org = self.get_organization()
-        
-        # Fetch payment history & invoices
-        payments = PaymentRecord.objects.filter(organization=org).order_by('-created_at')
-        invoices = InvoiceRecord.objects.filter(subscription__organization=org).order_by('-created_at')
-
-        return Response({
-            'payments': PaymentRecordSerializer(payments, many=True).data,
-            'invoices': InvoiceRecordSerializer(invoices, many=True).data
-        })
-
-class WebhookReceiverView(views.APIView):
+class WebhookViewSet(views.APIView):
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        payload_data = request.body.decode('utf-8')
-        signature = request.headers.get('X-Razorpay-Signature')
-        webhook_secret = settings.RAZORPAY_WEBHOOK_SECRET or 'webhook_secret'
-
-        # Verify signature
-        verified = False
-        if signature:
-            generated = hmac.new(
-                webhook_secret.encode('utf-8'),
-                payload_data.encode('utf-8'),
-                hashlib.sha256
-            ).hexdigest()
-            if generated == signature or signature == 'mock_webhook_signature':
-                verified = True
-
-        if not verified:
-            return Response({'error': 'Webhook signature verification failed.'}, status=status.HTTP_400_BAD_REQUEST)
-
+        # Verify webhook signature
+        sig_header = request.headers.get('X-Razorpay-Signature')
+        if not sig_header:
+            return Response({'error': 'X-Razorpay-Signature header is missing.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        svc = RazorpayService()
+        body = request.body
+        
+        # Webhook signature verification
+        secret = getattr(settings, 'RAZORPAY_WEBHOOK_SECRET', 'webhook_secret')
         try:
-            event = json.loads(payload_data)
+            svc.client.utility.verify_webhook_signature(body, sig_header, secret)
         except Exception:
-            return Response({'error': 'Invalid json payload.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        event_id = event.get('id')
-        event_type = event.get('event')
-
-        # Idempotency check
-        if WebhookEventLog.objects.filter(event_id=event_id).exists():
-            return Response({'message': 'Webhook already processed.'}, status=status.HTTP_200_OK)
-
-        log = WebhookEventLog.objects.create(
-            event_id=event_id,
-            event_type=event_type,
-            payload=event
-        )
-
-        # Process Razorpay Events
+            if sig_header != 'mock_webhook_signature':
+                return Response({'error': 'Webhook signature verification failed.'}, status=status.HTTP_400_BAD_REQUEST)
+        
         try:
-            # Event entity details: subscription charged/activated/cancelled
-            payload_entity = event.get('payload', {})
-            sub_entity = payload_entity.get('subscription', {}).get('entity', {})
-            rzp_sub_id = sub_entity.get('id')
+            event = json.loads(body)
+        except Exception:
+            return Response({'error': 'Invalid JSON payload.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Handle event types: payment.captured, subscription.activated, subscription.cancelled
+        event_type = event.get('event')
+        payload = event.get('payload', {})
+        
+        if event_type == 'payment.captured':
+            self._handle_payment_captured(payload)
+        elif event_type == 'subscription.activated':
+            self._handle_subscription_activated(payload)
+        elif event_type == 'subscription.cancelled':
+            self._handle_subscription_cancelled(payload)
+            
+        return Response({'status': 'ok'}, status=status.HTTP_200_OK)
 
-            if rzp_sub_id:
-                subscription = WorkspaceSubscription.objects.filter(razorpay_subscription_id=rzp_sub_id).first()
-                if subscription:
-                    if event_type == 'subscription.activated':
-                        subscription.status = 'ACTIVE'
-                        subscription.save()
-                    elif event_type == 'subscription.charged':
-                        payment_entity = payload_entity.get('payment', {}).get('entity', {})
-                        pay_id = payment_entity.get('id')
-                        pay_amount = payment_entity.get('amount', 0) / 100.0
-                        
-                        # Set active dates
-                        subscription.status = 'ACTIVE'
-                        subscription.start_date = timezone.now()
-                        subscription.end_date = timezone.now() + timezone.timedelta(days=30)
-                        subscription.save()
-
-                        # Capture payment record idempotently
-                        payment, created = PaymentRecord.objects.get_or_create(
-                            razorpay_payment_id=pay_id,
-                            defaults={
-                                'organization': subscription.organization,
-                                'amount': pay_amount,
-                                'status': 'CAPTURED'
-                            }
-                        )
-                        
-                        # Generate Invoice
-                        invoice_num = f"INV-{subscription.organization.id}-{int(timezone.now().timestamp())}"
-                        InvoiceRecord.objects.get_or_create(
-                            invoice_number=invoice_num,
-                            defaults={
-                                'subscription': subscription,
-                                'amount': pay_amount,
-                                'tax_amount': pay_amount * 0.18,
-                                'gstin': subscription.gstin,
-                                'legal_name': subscription.legal_name,
-                                'billing_address': subscription.billing_address
-                            }
-                        )
-                    elif event_type == 'subscription.cancelled':
-                        subscription.status = 'CANCELLED'
-                        subscription.save()
-                    elif event_type == 'subscription.halted':
-                        subscription.status = 'HALTED'
-                        subscription.save()
-
-            log.processed = True
-            log.save()
-            return Response({'message': 'Webhook processed successfully.'}, status=status.HTTP_200_OK)
-
+    def _handle_payment_captured(self, payload):
+        payment_entity = payload.get('payment', {}).get('entity', {})
+        payment_id = payment_entity.get('id')
+        order_id = payment_entity.get('order_id')
+        amount = payment_entity.get('amount', 0) / 100.0  # from paise
+        
+        # Find matching subscription based on razorpay_customer_id or order_id notes
+        notes = payment_entity.get('notes', {})
+        tenant_id = notes.get('tenant_id')
+        
+        from organizations.models import Organization
+        try:
+            tenant = Organization.objects.get(id=tenant_id)
+            sub = Subscription.objects.filter(tenant=tenant).first()
+            if sub:
+                PaymentTransaction.objects.get_or_create(
+                    razorpay_payment_id=payment_id,
+                    defaults={
+                        'tenant': tenant,
+                        'subscription': sub,
+                        'razorpay_order_id': order_id or '',
+                        'razorpay_signature': 'webhook_signed',
+                        'amount': amount,
+                        'status': 'CAPTURED'
+                    }
+                )
         except Exception as e:
-            log.error_log = str(e)
-            log.save()
-            logger.exception("Failed to process webhook event")
-            return Response({'error': 'Error processing webhook event.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f"Error handling payment captured webhook: {str(e)}")
+
+    def _handle_subscription_activated(self, payload):
+        sub_entity = payload.get('subscription', {}).get('entity', {})
+        sub_id = sub_entity.get('id')
+        if sub_id:
+            Subscription.objects.filter(razorpay_subscription_id=sub_id).update(
+                status='ACTIVE',
+                current_period_start=timezone.now(),
+                current_period_end=timezone.now() + timezone.timedelta(days=30)
+            )
+
+    def _handle_subscription_cancelled(self, payload):
+        sub_entity = payload.get('subscription', {}).get('entity', {})
+        sub_id = sub_entity.get('id')
+        if sub_id:
+            Subscription.objects.filter(razorpay_subscription_id=sub_id).update(
+                status='CANCELLED',
+                cancelled_at=timezone.now()
+            )

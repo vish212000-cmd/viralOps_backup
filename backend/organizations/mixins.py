@@ -38,6 +38,8 @@ class TenantScopedQuerysetMixin:
         # Scope queryset by organization key relationship
         if hasattr(model, 'organization'):
             return queryset.filter(organization=org)
+        elif hasattr(model, 'tenant'):
+            return queryset.filter(tenant=org)
         elif hasattr(model, 'project'):
             return queryset.filter(project__organization=org)
         elif hasattr(model, 'source_input'):

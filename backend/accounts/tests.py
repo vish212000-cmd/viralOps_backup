@@ -127,3 +127,68 @@ class EmailAuthTestCase(TestCase):
         }
         login_res = self.client.post(self.login_url, login_payload, format='json')
         self.assertEqual(login_res.status_code, status.HTTP_200_OK)
+
+
+class GoogleOAuthTestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.google_auth_url = reverse('auth-google')
+
+    def test_google_oauth_signup_new_user(self):
+        payload = {
+            'code': 'mock_google_code',
+            'email': 'new_oauth_user@viralops.com'
+        }
+        res = self.client.post(self.google_auth_url, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        
+        user = User.objects.get(email='new_oauth_user@viralops.com')
+        self.assertEqual(user.username, 'new_oauth_user')
+        self.assertTrue(user.is_email_verified)
+        
+        from allauth.socialaccount.models import SocialAccount
+        self.assertTrue(SocialAccount.objects.filter(user=user, provider='google').exists())
+        self.assertIn('access', res.data)
+        self.assertIn('refresh', res.data)
+
+    def test_google_oauth_link_existing_user(self):
+        user = User.objects.create_user(
+            username='existing_user',
+            email='existing_oauth@viralops.com',
+            password='Password123!',
+            is_email_verified=False
+        )
+        
+        payload = {
+            'code': 'mock_google_code',
+            'email': 'existing_oauth@viralops.com'
+        }
+        res = self.client.post(self.google_auth_url, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        
+        self.assertEqual(User.objects.filter(email='existing_oauth@viralops.com').count(), 1)
+        
+        user.refresh_from_db()
+        self.assertTrue(user.is_email_verified)
+        
+        from allauth.socialaccount.models import SocialAccount
+        self.assertTrue(SocialAccount.objects.filter(user=user, provider='google').exists())
+
+    def test_google_oauth_username_deduplication(self):
+        User.objects.create_user(
+            username='conflict_user',
+            email='conflict@example.com',
+            password='Password123!'
+        )
+        
+        payload = {
+            'code': 'mock_google_code',
+            'email': 'conflict_user@viralops.com'
+        }
+        res = self.client.post(self.google_auth_url, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        
+        user = User.objects.get(email='conflict_user@viralops.com')
+        self.assertNotEqual(user.username, 'conflict_user')
+        self.assertTrue(user.username.startswith('conflict_user_'))
+

@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { api } from '../utils/api';
 
 // Import design system components
 import { Button } from '../components/design/Button';
@@ -258,5 +259,53 @@ describe('Legal Policies Pages', () => {
     );
     expect(await screen.findByText('Refund & Cancellation Policy')).toBeInTheDocument();
     expect(screen.getByText(/1\. Cancellations/i)).toBeInTheDocument();
+  });
+});
+
+const GoogleCallback = React.lazy(() => import('../pages/GoogleCallback'));
+
+describe('Google OAuth Callback Page', () => {
+  it('renders loading state first and exchanges code', async () => {
+    const mockPost = vi.spyOn(api, 'post').mockResolvedValue({
+      access: 'mock-access',
+      refresh: 'mock-refresh',
+      user: { username: 'oauth_user', email: 'oauth@viralops.com' }
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/auth/google/callback?code=mock_google_code']}>
+        <ToastProvider>
+          <React.Suspense fallback={<div>Loading...</div>}>
+            <GoogleCallback />
+          </React.Suspense>
+        </ToastProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Verifying credentials...')).toBeInTheDocument();
+    
+    await vi.waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith('/api/auth/google/', {
+        code: 'mock_google_code',
+        redirect_uri: expect.stringContaining('/auth/google/callback')
+      });
+    });
+
+    mockPost.mockRestore();
+  });
+
+  it('renders error state when google authorization is rejected', async () => {
+    render(
+      <MemoryRouter initialEntries={['/auth/google/callback?error=access_denied']}>
+        <ToastProvider>
+          <React.Suspense fallback={<div>Loading...</div>}>
+            <GoogleCallback />
+          </React.Suspense>
+        </ToastProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Authentication Error')).toBeInTheDocument();
+    expect(screen.getByText(/access_denied/i)).toBeInTheDocument();
   });
 });

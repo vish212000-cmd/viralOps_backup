@@ -110,10 +110,11 @@ class GoogleOAuthView(views.APIView):
                     username = f"{base_username}_{counter}"
                     counter += 1
                 
+                import secrets
                 user = User.objects.create_user(
                     username=username,
                     email=email,
-                    password=User.objects.make_random_password(),
+                    password=secrets.token_urlsafe(32),
                     is_email_verified=True
                 )
                 

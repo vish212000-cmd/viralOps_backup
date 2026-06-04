@@ -9,7 +9,7 @@ from organizations.mixins import TenantScopedQuerysetMixin
 from organizations.permissions import IsOrganizationMember
 from organizations.models import Organization
 from projects.models import Project, SourceInput, GeneratedAsset, ProcessingJob, UsageEvent, AuditLog
-from billing.models import WorkspaceSubscription, Plan, PaymentRecord
+from billing.models import Subscription, SubscriptionPlan, PaymentTransaction
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +39,11 @@ class WorkspaceSummaryView(TenantScopedQuerysetMixin, views.APIView):
         assets_count = GeneratedAsset.objects.filter(project__organization=org).count()
 
         # Subscription & limits
-        subscription = WorkspaceSubscription.objects.filter(organization=org).first()
+        subscription = Subscription.objects.filter(tenant=org).first()
         if subscription:
             plan_name = subscription.plan.name
-            limit_projects = subscription.plan.quota_projects
-            limit_generations = subscription.plan.quota_generations
+            limit_projects = subscription.plan.max_projects
+            limit_generations = subscription.plan.max_generations_per_month
         else:
             plan_name = 'Free Trial'
             limit_projects = 3
@@ -138,7 +138,7 @@ class AdminAnalyticsSummaryView(views.APIView):
         active_workspaces = Organization.objects.count()
         
         # Revenue
-        total_revenue = PaymentRecord.objects.filter(status='CAPTURED').aggregate(total=models.Sum('amount'))['total'] or 0.00
+        total_revenue = PaymentTransaction.objects.filter(status='CAPTURED').aggregate(total=models.Sum('amount'))['total'] or 0.00
         
         # Job counts
         job_counts = ProcessingJob.objects.values('status').annotate(count=models.Count('id'))

@@ -4,13 +4,17 @@ from .models import Membership
 class IsOrganizationMember(permissions.BasePermission):
     """
     Validates that the user is a member of the requested organization.
-    Assumes that the view contains a query parameter or path parameter named 'org_slug'.
+    Assumes that the view contains a query parameter, path parameter, or header named 'org_slug' / 'X-Org-Slug'.
     """
     def has_permission(self, view_request, view):
         if not view_request.user or not view_request.user.is_authenticated:
             return False
             
-        org_slug = view.kwargs.get('org_slug') or view_request.query_params.get('org_slug')
+        org_slug = (
+            view.kwargs.get('org_slug') or 
+            view_request.query_params.get('org_slug') or 
+            view_request.headers.get('X-Org-Slug')
+        )
         if not org_slug:
             return True # Allow list operations if scoped elsewhere
             
@@ -27,7 +31,11 @@ class IsOrganizationAdmin(permissions.BasePermission):
         if not view_request.user or not view_request.user.is_authenticated:
             return False
             
-        org_slug = view.kwargs.get('org_slug') or view_request.query_params.get('org_slug')
+        org_slug = (
+            view.kwargs.get('org_slug') or 
+            view_request.query_params.get('org_slug') or 
+            view_request.headers.get('X-Org-Slug')
+        )
         if not org_slug:
             return False
             

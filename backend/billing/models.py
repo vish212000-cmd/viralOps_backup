@@ -1,95 +1,87 @@
 from django.db import models
 from django.conf import settings
-from organizations.models import Organization
+from organizations.mixins import TenantScopedQuerysetMixin
 
-class Plan(models.Model):
-    INTERVAL_CHOICES = [
-        ('MONTHLY', 'Monthly'),
-        ('YEARLY', 'Yearly'),
-    ]
-    name = models.CharField(max_length=255)
-    razorpay_plan_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Price in INR")
-    currency = models.CharField(max_length=10, default='INR')
-    interval = models.CharField(max_length=20, choices=INTERVAL_CHOICES, default='MONTHLY')
-    quota_projects = models.IntegerField(default=3, help_text="Maximum allowed projects")
-    quota_generations = models.IntegerField(default=10, help_text="Maximum allowed AI generations per month")
+class SubscriptionPlan(TenantScopedQuerysetMixin, models.Model):
+    tenant = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE, null=True, blank=True)
+    PLAN_CHOICES = (('FREE', 'Free'), ('PRO', 'Pro'), ('TEAMS', 'Teams'), ('ENTERPRISE', 'Enterprise'))
+    name = models.CharField(max_length=50, choices=PLAN_CHOICES, unique=True)
+    price_monthly = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    price_yearly = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    razorpay_plan_id = models.CharField(max_length=100, blank=True)
+    max_projects = models.IntegerField(default=5)
+    max_generations_per_month = models.IntegerField(default=100)
+    max_storage_gb = models.IntegerField(default=10)
+    ai_brand_tone = models.BooleanField(default=False)
+    custom_domain = models.BooleanField(default=False)
+    priority_support = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.name} - {self.price} {self.currency}/{self.interval}"
+        return f"{self.get_name_display()} Plan"
 
-class WorkspaceSubscription(models.Model):
-    STATUS_CHOICES = [
-        ('PENDING', 'Pending Payment'),
-        ('ACTIVE', 'Active'),
-        ('CANCELLED', 'Cancelled'),
-        ('EXPIRED', 'Expired'),
-        ('HALTED', 'Halted'),
-    ]
-    organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name='subscription')
-    plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name='subscriptions')
-    razorpay_subscription_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
-    start_date = models.DateTimeField(null=True, blank=True)
-    end_date = models.DateTimeField(null=True, blank=True)
-    
+class Subscription(TenantScopedQuerysetMixin, models.Model):
+    tenant = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    plan = models.ForeignKey(SubscriptionPlan, on_delete=models.PROTECT)
+    razorpay_subscription_id = models.CharField(max_length=100, blank=True, null=True, unique=True)
+    razorpay_customer_id = models.CharField(max_length=100, blank=True)
+    status = models.CharField(max_length=20, choices=(
+        ('ACTIVE', 'Active'), ('PAST_DUE', 'Past Due'), 
+        ('CANCELLED', 'Cancelled'), ('PENDING', 'Pending')
+    ), default='PENDING')
+    current_period_start = models.DateTimeField(null=True, blank=True)
+    current_period_end = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancel_reason = models.TextField(blank=True)
     # India-ready Tax & Legal Compliance details
-    legal_name = models.CharField(max_length=255, blank=True, default='', help_text="Registered Company/Entity Name")
+    legal_name = models.CharField(max_length=255, blank=True, default='')
     billing_contact = models.CharField(max_length=100, blank=True, default='')
     billing_email = models.EmailField(blank=True, default='')
     billing_address = models.TextField(blank=True, default='')
-    gstin = models.CharField(max_length=15, blank=True, default='', help_text="15-digit GSTIN ID")
-
+    gstin = models.CharField(max_length=15, blank=True, default='')
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return f"{self.organization.name} - {self.plan.name} ({self.status})"
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ('tenant', 'user')
 
-class PaymentRecord(models.Model):
-    STATUS_CHOICES = [
-        ('CAPTURED', 'Captured / Success'),
-        ('FAILED', 'Failed'),
-        ('PENDING', 'Pending'),
-    ]
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='payments')
-    razorpay_payment_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
-    razorpay_order_id = models.CharField(max_length=255, null=True, blank=True)
-    razorpay_signature = models.CharField(max_length=255, null=True, blank=True)
+    def __str__(self):
+        return f"{self.tenant.name} - {self.plan.name} ({self.status})"
+
+class Invoice(TenantScopedQuerysetMixin, models.Model):
+    tenant = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE)
+    subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE)
+    razorpay_invoice_id = models.CharField(max_length=100, blank=True, null=True, unique=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    currency = models.CharField(max_length=10, default='INR')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    currency = models.CharField(max_length=3, default='INR')
+    status = models.CharField(max_length=20, choices=(
+        ('GENERATED', 'Generated'), ('PAID', 'Paid'),
+        ('FAILED', 'Failed'), ('VOID', 'Void')
+    ), default='GENERATED')
+    paid_at = models.DateTimeField(null=True, blank=True)
+    pdf_url = models.URLField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        id_str = self.razorpay_payment_id or f"Order:{self.razorpay_order_id}"
-        return f"Payment {id_str} ({self.amount} INR) - {self.status}"
+        return f"Invoice {self.razorpay_invoice_id or self.id} ({self.amount} {self.currency})"
 
-class InvoiceRecord(models.Model):
-    subscription = models.ForeignKey(WorkspaceSubscription, on_delete=models.CASCADE, related_name='invoices')
-    invoice_number = models.CharField(max_length=100, unique=True)
+class PaymentTransaction(TenantScopedQuerysetMixin, models.Model):
+    tenant = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE)
+    subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE)
+    razorpay_payment_id = models.CharField(max_length=100)
+    razorpay_order_id = models.CharField(max_length=100)
+    razorpay_signature = models.CharField(max_length=200)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="18% GST Amount")
-    
-    # Snapshot at time of payment
-    gstin = models.CharField(max_length=15, blank=True, default='')
-    legal_name = models.CharField(max_length=255, blank=True, default='')
-    billing_address = models.TextField(blank=True, default='')
-    
-    created_at = models.DateTimeField(auto_now_add=True)
+    currency = models.CharField(max_length=3, default='INR')
+    status = models.CharField(max_length=20, choices=(
+        ('CAPTURED', 'Captured'), ('FAILED', 'Failed'), 
+        ('REFUNDED', 'Refunded'), ('AUTHORIZED', 'Authorized')
+    ))
+    captured_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Invoice {self.invoice_number} ({self.amount} INR)"
-
-class WebhookEventLog(models.Model):
-    event_id = models.CharField(max_length=255, unique=True)
-    event_type = models.CharField(max_length=255)
-    payload = models.JSONField()
-    processed = models.BooleanField(default=False)
-    error_log = models.TextField(blank=True, default='')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Webhook {self.event_id} ({self.event_type}) - Processed: {self.processed}"
+        return f"Tx {self.razorpay_payment_id} ({self.amount} {self.currency})"

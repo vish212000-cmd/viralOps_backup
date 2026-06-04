@@ -32,25 +32,26 @@ class ProjectViewSet(TenantScopedQuerysetMixin, viewsets.ModelViewSet):
         org = self.get_organization()
         
         # Verify Billing Entitlements limit
-        from billing.models import WorkspaceSubscription, Plan
+        from billing.models import Subscription, SubscriptionPlan
         from django.utils import timezone
         from billing.views import get_or_create_default_plans
         get_or_create_default_plans()
 
-        subscription, created = WorkspaceSubscription.objects.get_or_create(
-            organization=org,
+        subscription, created = Subscription.objects.get_or_create(
+            tenant=org,
+            user=self.request.user,
             defaults={
-                'plan': Plan.objects.filter(price=0).first() or Plan.objects.first(),
+                'plan': SubscriptionPlan.objects.filter(price_monthly=0).first() or SubscriptionPlan.objects.first(),
                 'status': 'ACTIVE',
-                'start_date': timezone.now(),
-                'end_date': timezone.now() + timezone.timedelta(days=30)
+                'current_period_start': timezone.now(),
+                'current_period_end': timezone.now() + timezone.timedelta(days=30)
             }
         )
         if subscription.status != 'ACTIVE':
             raise exceptions.ValidationError("Your subscription is inactive. Please update billing details.")
 
         current_projects_count = Project.objects.filter(organization=org).count()
-        if current_projects_count >= subscription.plan.quota_projects:
+        if current_projects_count >= subscription.plan.max_projects:
             raise exceptions.ValidationError("Project creation limit exceeded. Please upgrade your plan.")
 
         project = serializer.save(organization=org)
@@ -111,18 +112,19 @@ class SourceInputViewSet(TenantScopedQuerysetMixin, viewsets.ModelViewSet):
         org = project.organization
 
         # Verify Billing generations limit before triggering ingestion
-        from billing.models import WorkspaceSubscription, Plan
+        from billing.models import Subscription, SubscriptionPlan
         from django.utils import timezone
         from billing.views import get_or_create_default_plans
         get_or_create_default_plans()
         
-        subscription, created = WorkspaceSubscription.objects.get_or_create(
-            organization=org,
+        subscription, created = Subscription.objects.get_or_create(
+            tenant=org,
+            user=self.request.user,
             defaults={
-                'plan': Plan.objects.filter(price=0).first() or Plan.objects.first(),
+                'plan': SubscriptionPlan.objects.filter(price_monthly=0).first() or SubscriptionPlan.objects.first(),
                 'status': 'ACTIVE',
-                'start_date': timezone.now(),
-                'end_date': timezone.now() + timezone.timedelta(days=30)
+                'current_period_start': timezone.now(),
+                'current_period_end': timezone.now() + timezone.timedelta(days=30)
             }
         )
         if subscription.status != 'ACTIVE':
@@ -135,7 +137,7 @@ class SourceInputViewSet(TenantScopedQuerysetMixin, viewsets.ModelViewSet):
             created_at__gte=month_start
         ).aggregate(total=models.Sum('quantity'))['total'] or 0
 
-        if current_gen_count >= subscription.plan.quota_generations:
+        if current_gen_count >= subscription.plan.max_generations_per_month:
             raise exceptions.ValidationError("Monthly AI generation limit exceeded. Please upgrade your plan.")
         
         # Enforce file upload size validation limits locally
@@ -256,16 +258,17 @@ class GeneratedAssetViewSet(TenantScopedQuerysetMixin, viewsets.ModelViewSet):
         org = self.get_organization()
         
         # Verify Billing generations limit
-        from billing.models import WorkspaceSubscription, Plan
+        from billing.models import Subscription, SubscriptionPlan
         from django.utils import timezone
         
-        subscription, created = WorkspaceSubscription.objects.get_or_create(
-            organization=org,
+        subscription, created = Subscription.objects.get_or_create(
+            tenant=org,
+            user=request.user,
             defaults={
-                'plan': Plan.objects.filter(price=0).first() or Plan.objects.first(),
+                'plan': SubscriptionPlan.objects.filter(price_monthly=0).first() or SubscriptionPlan.objects.first(),
                 'status': 'ACTIVE',
-                'start_date': timezone.now(),
-                'end_date': timezone.now() + timezone.timedelta(days=30)
+                'current_period_start': timezone.now(),
+                'current_period_end': timezone.now() + timezone.timedelta(days=30)
             }
         )
         if subscription.status != 'ACTIVE':
@@ -278,7 +281,7 @@ class GeneratedAssetViewSet(TenantScopedQuerysetMixin, viewsets.ModelViewSet):
             created_at__gte=month_start
         ).aggregate(total=models.Sum('quantity'))['total'] or 0
 
-        if current_gen_count >= subscription.plan.quota_generations:
+        if current_gen_count >= subscription.plan.max_generations_per_month:
             raise exceptions.ValidationError("Monthly AI generation limit exceeded. Please upgrade your plan.")
 
         # Increment usage count
