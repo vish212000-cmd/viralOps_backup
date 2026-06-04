@@ -8,7 +8,11 @@ import os
 def trigger_error(request):
     division_by_zero = 1 / 0
 
+from projects.health import HealthzView, ReadyView
+
 urlpatterns = [
+    path('healthz/', HealthzView.as_view(), name='root-healthz'),
+    path('ready/', ReadyView.as_view(), name='root-ready'),
     path(os.getenv('ADMIN_PATH', 'admin/'), admin.site.urls),
     path('sentry-debug/', trigger_error),
     path('prometheus/', include('django_prometheus.urls')),

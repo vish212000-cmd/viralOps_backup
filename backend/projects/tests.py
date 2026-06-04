@@ -438,6 +438,146 @@ class ObservabilityTestCase(TestCase):
         self.assertIn('viralops_api_requests_total', response.content.decode('utf-8'))
 
 
+class DeploymentTestCase(TestCase):
+    @patch('subprocess.run')
+    @patch('sys.stdin.isatty', return_value=False)
+    def test_deploy_command_migration(self, mock_isatty, mock_run):
+        from django.core.management import call_command
+        call_command('deploy', stage='migration')
+        mock_run.assert_not_called()
+
+    @patch('subprocess.run')
+    def test_deploy_command_deploy(self, mock_run):
+        from django.core.management import call_command
+        call_command('deploy', stage='deploy')
+        self.assertTrue(mock_run.called)
+
+    @patch('subprocess.run')
+    @patch('django.db.connection.cursor')
+    def test_deploy_command_rollback(self, mock_cursor, mock_run):
+        from django.core.management import call_command
+        mock_cursor.return_value.__enter__.return_value.fetchone.return_value = ('projects', '0001_initial')
+        
+        with patch('deploy.management.commands.deploy.call_command') as mock_call:
+            call_command('deploy', stage='rollback')
+            self.assertTrue(mock_run.called)
+            # 0001_initial has no parent, so it should roll back to 'zero'
+            mock_call.assert_any_call('migrate', 'projects', 'zero')
+
+    @patch('projects.smoke_tests.run_smoke_tests', return_value=True)
+    def test_deploy_command_smoke(self, mock_smoke):
+        from django.core.management import call_command
+        call_command('deploy', stage='smoke')
+        mock_smoke.assert_called_once()
+
+    @patch('projects.smoke_tests.run_smoke_tests', return_value=True)
+    @patch('subprocess.run')
+    def test_deploy_command_release_success(self, mock_run, mock_smoke):
+        from django.core.management import call_command
+        with patch('sys.stdin.isatty', return_value=False):
+            call_command('deploy', stage='release')
+            self.assertTrue(mock_run.called)
+            self.assertTrue(mock_smoke.called)
+
+    @patch('projects.smoke_tests.run_smoke_tests', return_value=False)
+    @patch('subprocess.run')
+    def test_deploy_command_release_failure_rollback(self, mock_run, mock_smoke):
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+        with patch('sys.stdin.isatty', return_value=False):
+            with patch('deploy.management.commands.deploy.call_command') as mock_call:
+                def side_effect(cmd, *args, **kwargs):
+                    if kwargs.get('stage') == 'smoke':
+                        raise CommandError("Smoke tests failed.")
+                    return None
+                mock_call.side_effect = side_effect
+                
+                with self.assertRaises(CommandError):
+                    call_command('deploy', stage='release')
+                mock_call.assert_any_call('deploy', stage='rollback', base_url='http://localhost:8000')
+
+
+class MFATestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username='mfatester',
+            email='mfa@viralops.com',
+            password='Password123!',
+            is_email_verified=True
+        )
+        self.client.force_authenticate(user=self.user)
+
+    def test_enable_mfa_success(self):
+        url = reverse('auth-mfa-enable')
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('secret', response.data)
+        self.assertIn('provisioning_uri', response.data)
+        self.assertEqual(len(response.data['secret']), 32)
+        
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_mfa_enabled)
+        self.assertEqual(self.user.mfa_secret, response.data['secret'])
+
+    def test_verify_mfa_success(self):
+        from accounts.totp import get_totp_code
+        self.client.post(reverse('auth-mfa-enable'))
+        self.user.refresh_from_db()
+        
+        import time
+        code = get_totp_code(self.user.mfa_secret, int(time.time() / 30))
+        
+        url = reverse('auth-mfa-verify')
+        response = self.client.post(url, {'code': code})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_mfa_enabled)
+
+    def test_verify_mfa_invalid(self):
+        self.client.post(reverse('auth-mfa-enable'))
+        url = reverse('auth-mfa-verify')
+        response = self.client.post(url, {'code': '000000'})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_mfa_enabled)
+
+    def test_jwt_login_with_mfa(self):
+        from accounts.totp import generate_secret, get_totp_code
+        self.user.mfa_secret = generate_secret()
+        self.user.is_mfa_enabled = True
+        self.user.save()
+        
+        self.client.force_authenticate(user=None)
+        
+        url = reverse('auth-login')
+        response = self.client.post(url, {'username': 'mfatester', 'password': 'Password123!'})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(response.data.get('mfa_required'))
+        
+        response = self.client.post(url, {
+            'username': 'mfatester',
+            'password': 'Password123!',
+            'mfa_token': '000000'
+        })
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Invalid Multi-Factor Authentication', str(response.data['detail']))
+
+        import time
+        valid_code = get_totp_code(self.user.mfa_secret, int(time.time() / 30))
+        response = self.client.post(url, {
+            'username': 'mfatester',
+            'password': 'Password123!',
+            'mfa_token': valid_code
+        })
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', response.data)
+        self.assertIn('refresh', response.data)
+
+
+
+
+
 
 
 

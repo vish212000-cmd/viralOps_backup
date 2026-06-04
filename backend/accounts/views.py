@@ -100,6 +100,8 @@ class UserRegisterView(views.APIView):
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+from rest_framework import serializers
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
@@ -110,6 +112,21 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 detail='Email address is not verified. Please verify your email before logging in.',
                 code='email_not_verified'
             )
+
+        # Enforce MFA TOTP Check if Enabled
+        if self.user.is_mfa_enabled:
+            mfa_token = self.context['request'].data.get('mfa_token')
+            if not mfa_token:
+                raise serializers.ValidationError({
+                    'mfa_required': True,
+                    'detail': 'Multi-Factor Authentication code is required.'
+                })
+            
+            from accounts.totp import verify_totp_code
+            if not verify_totp_code(self.user.mfa_secret, mfa_token):
+                raise serializers.ValidationError({
+                    'detail': 'Invalid Multi-Factor Authentication code.'
+                })
         return data
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -199,3 +216,64 @@ class PasswordResetConfirmView(views.APIView):
             return Response({'error': 'Password reset token has expired.'}, status=status.HTTP_400_BAD_REQUEST)
         except (signing.BadSignature, User.DoesNotExist):
             return Response({'error': 'Invalid password reset token.'}, status=status.HTTP_400_BAD_REQUEST)
+
+class EnableMFAView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if user.is_mfa_enabled:
+            return Response({'detail': 'MFA is already enabled.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        from accounts.totp import generate_secret, get_provisioning_uri
+        if not user.mfa_secret:
+            user.mfa_secret = generate_secret()
+            user.save()
+            
+        uri = get_provisioning_uri(user.mfa_secret, user.email)
+        return Response({
+            'secret': user.mfa_secret,
+            'provisioning_uri': uri
+        }, status=status.HTTP_200_OK)
+
+class VerifyMFAView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if user.is_mfa_enabled:
+            return Response({'detail': 'MFA is already enabled.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        code = request.data.get('code')
+        if not code:
+            return Response({'error': 'Verification code is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        from accounts.totp import verify_totp_code
+        if verify_totp_code(user.mfa_secret, code):
+            user.is_mfa_enabled = True
+            user.save()
+            return Response({'detail': 'MFA has been successfully verified and enabled.'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Invalid verification code.'}, status=status.HTTP_400_BAD_REQUEST)
+
+class DisableMFAView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if not user.is_mfa_enabled:
+            return Response({'detail': 'MFA is already disabled.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        code = request.data.get('code')
+        if not code:
+            return Response({'error': 'Verification code is required to disable MFA.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        from accounts.totp import verify_totp_code
+        if verify_totp_code(user.mfa_secret, code):
+            user.is_mfa_enabled = False
+            user.mfa_secret = ''
+            user.save()
+            return Response({'detail': 'MFA has been successfully disabled.'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Invalid verification code.'}, status=status.HTTP_400_BAD_REQUEST)
+

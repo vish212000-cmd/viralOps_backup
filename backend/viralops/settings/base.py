@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'organizations',
     'projects',
     'billing',
+    'deploy',
 ]
 
 MIDDLEWARE = [
@@ -216,4 +217,21 @@ if EMAIL_HOST:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Celery Queue Routing and Dead Letter Queue Configuration
+CELERY_TASK_DEFAULT_QUEUE = 'default'
+CELERY_TASK_QUEUES = {
+    'default': {
+        'exchange': 'default',
+        'routing_key': 'default',
+    },
+    'dead_letter': {
+        'exchange': 'dead_letter',
+        'routing_key': 'dead_letter',
+    },
+}
+CELERY_TASK_ROUTES = {
+    'projects.tasks.process_source_input': {'queue': 'default'},
+}
+
 

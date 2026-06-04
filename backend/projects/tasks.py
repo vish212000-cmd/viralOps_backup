@@ -1,6 +1,7 @@
 import time
 import json
 import logging
+import redis
 from celery import shared_task
 from django.utils import timezone
 from django.conf import settings
@@ -12,13 +13,40 @@ from .ai_service import generate_social_assets
 
 logger = logging.getLogger(__name__)
 
-@shared_task
-def process_source_input(source_input_id):
+# Initialize Redis client for circuit breaker
+try:
+    redis_client = redis.Redis.from_url(getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0'))
+except Exception as e:
+    logger.warning(f"Could not connect to Redis for circuit breaker: {str(e)}")
+    redis_client = None
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def process_source_input(self, source_input_id):
     """
     Ingest long-form source, clean/normalize content,
     run theme/clip detection, run the AI generation pipeline,
     and save the outputs.
     """
+    task_name = self.name
+    if redis_client:
+        try:
+            if redis_client.get(f"cb_tripped:{task_name}"):
+                logger.error(f"[CIRCUIT BREAKER] Task {task_name} aborted because the circuit is OPEN.")
+                try:
+                    source_input = SourceInput.objects.get(id=source_input_id)
+                    source_input.status = 'FAILED'
+                    source_input.error_message = "Circuit Breaker is open. AI pipelines are temporarily suspended."
+                    source_input.save()
+                    job, _ = ProcessingJob.objects.get_or_create(source_input=source_input, project=source_input.project)
+                    job.status = 'FAILED'
+                    job.error_log = "Circuit Breaker is open. Background processing suspended."
+                    job.save()
+                except Exception:
+                    pass
+                return
+        except Exception as e:
+            logger.warning(f"Failed to check circuit breaker: {str(e)}")
+
     try:
         source_input = SourceInput.objects.get(id=source_input_id)
     except SourceInput.DoesNotExist:
@@ -156,6 +184,13 @@ def process_source_input(source_input_id):
             quantity=1
         )
 
+        # Reset failures on success
+        if redis_client:
+            try:
+                redis_client.delete(f"cb_failures:{task_name}")
+            except Exception:
+                pass
+
         # Complete job
         job.status = 'COMPLETED'
         job.save()
@@ -173,6 +208,21 @@ def process_source_input(source_input_id):
         job.status = 'FAILED'
         job.error_log = str(e)
         job.save()
+
+        # Update circuit breaker failures and check trigger
+        if redis_client:
+            try:
+                failures = redis_client.incr(f"cb_failures:{task_name}")
+                redis_client.expire(f"cb_failures:{task_name}", 3600)
+                if failures >= 5:
+                    redis_client.setex(f"cb_tripped:{task_name}", 300, "True")
+                    redis_client.delete(f"cb_failures:{task_name}")
+                    logger.critical(f"[CIRCUIT BREAKER] Tripped! {task_name} has failed 5 times consecutively. Suspending for 5 minutes.")
+            except Exception as re:
+                logger.warning(f"Failed to update circuit breaker on failure: {str(re)}")
+
+        # Trigger Celery retry policy
+        raise self.retry(exc=e)
 
 def regenerate_single_asset(asset_id):
     """

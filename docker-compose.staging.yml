@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  db:
+    environment:
+      MYSQL_DATABASE: viralops_staging
+
+  backend:
+    environment:
+      - DJANGO_SETTINGS_MODULE=viralops.settings.staging
+      - DB_NAME=viralops_staging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+
+  celery:
+    environment:
+      - DJANGO_SETTINGS_MODULE=viralops.settings.staging
+      - DB_NAME=viralops_staging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+
+  # Disable monitoring services in staging
+  prometheus:
+    entrypoint: ["echo", "prometheus disabled in staging"]
+    ports: []
+    restart: "no"
+
+  grafana:
+    entrypoint: ["echo", "grafana disabled in staging"]
+    ports: []
+    restart: "no"
