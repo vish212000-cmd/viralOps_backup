@@ -19,17 +19,21 @@ def get_or_create_smoke_test_credentials():
         if created or not user.check_password(password):
             user.set_password(password)
             user.is_active = True
+            user.is_email_verified = True
+            user.save()
+        elif not user.is_email_verified:
+            user.is_email_verified = True
             user.save()
 
         org, _ = Organization.objects.get_or_create(slug=org_slug, defaults={'name': 'Smoke Test Org'})
         Membership.objects.get_or_create(user=user, organization=org, defaults={'role': 'ADMIN'})
 
-        return email, password, org_slug
+        return username, password, org_slug
     except Exception as e:
         print(f"Django DB context missing or failed to initialize credentials: {str(e)}")
         # Fallback to env vars if we are running completely standalone outside Django
         return (
-            os.getenv('SMOKE_TEST_EMAIL', 'smoketest@viralops.com'),
+            os.getenv('SMOKE_TEST_USERNAME', 'smoketest'),
             os.getenv('SMOKE_TEST_PASSWORD', 'SmokeTestPass123!'),
             os.getenv('SMOKE_TEST_ORG_SLUG', 'smoke-test-org')
         )
@@ -37,7 +41,7 @@ def get_or_create_smoke_test_credentials():
 def run_smoke_tests(base_url: str):
     """End-to-end post-deployment verification tests"""
     print("Preparing smoke test verification account...")
-    email, password, org_slug = get_or_create_smoke_test_credentials()
+    username, password, org_slug = get_or_create_smoke_test_credentials()
 
     tests_run = 0
     tests_passed = 0
@@ -90,7 +94,7 @@ def run_smoke_tests(base_url: str):
         "POST",
         f"{base_url}/api/auth/login/",
         200,
-        json_data={"email": email, "password": password},
+        json_data={"username": username, "password": password},
         search_body="access"
     )
 

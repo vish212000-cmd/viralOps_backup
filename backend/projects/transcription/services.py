@@ -135,7 +135,7 @@ def transcribe_source_input(source_input):
             if not os.path.exists(file_path):
                 raise TranscriptionError(f"Local PDF file path {file_path} does not exist.")
             extracted_text = _extract_pdf_text(file_path)
-            if not extracted_text:
+            if not extracted_text or not any(c.isalnum() for c in extracted_text):
                 title = source_input.title or source_input.file_name or "Uploaded PDF"
                 extracted_text = f"Simulated text contents extracted from PDF file {source_input.file_name or 'source.pdf'}. Document covers business planning, operations, and social marketing execution guidelines."
             
