@@ -122,6 +122,16 @@ else:
 
 CORS_ALLOW_ALL_ORIGINS = False
 
+from corsheaders.defaults import default_headers
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'x-org-slug',
+]
+
+CORS_EXPOSE_HEADERS = [
+    'content-disposition',
+]
+
+
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'

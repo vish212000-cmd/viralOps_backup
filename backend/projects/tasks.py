@@ -197,6 +197,10 @@ def process_source_input(self, source_input_id):
 
         source_input.status = 'COMPLETED'
         source_input.save()
+
+        project.status = 'COMPLETED'
+        project.save()
+        
         logger.info(f"Ingestion job completed successfully for SourceInput: {source_input.id}")
 
     except Exception as e:
