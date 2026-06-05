@@ -49,6 +49,13 @@ export interface SourceInput {
   text_content: string;
   status: SourceStatus;
   error_message: string;
+  // Transcript diagnostics (populated during YouTube ingestion)
+  transcript_source?: string;
+  transcript_length?: number | null;
+  transcript_validation_status?: 'PASS' | 'FAIL' | '';
+  transcript_retrieval_method?: string;
+  transcript_retrieved_at?: string | null;
+  transcript_preview?: string;
   created_at: string;
   updated_at: string;
 }

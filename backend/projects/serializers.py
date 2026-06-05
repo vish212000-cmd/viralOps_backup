@@ -42,10 +42,18 @@ class SourceInputSerializer(serializers.ModelSerializer):
     class Meta:
         model = SourceInput
         fields = (
-            'id', 'project', 'type', 'title', 'source_url', 'file_name', 
-            'file_size', 'file', 'text_content', 'status', 'error_message', 'created_at', 'updated_at'
+            'id', 'project', 'type', 'title', 'source_url', 'file_name',
+            'file_size', 'file', 'text_content', 'status', 'error_message',
+            # Transcript diagnostics
+            'transcript_source', 'transcript_length', 'transcript_validation_status',
+            'transcript_retrieval_method', 'transcript_retrieved_at', 'transcript_preview',
+            'created_at', 'updated_at'
         )
-        read_only_fields = ('project', 'status', 'error_message')
+        read_only_fields = (
+            'project', 'status', 'error_message',
+            'transcript_source', 'transcript_length', 'transcript_validation_status',
+            'transcript_retrieval_method', 'transcript_retrieved_at', 'transcript_preview',
+        )
 
     def validate(self, data):
         stype = data.get('type')

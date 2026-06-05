@@ -44,6 +44,32 @@ class SourceInput(models.Model):
     text_content = models.TextField(blank=True, default='')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     error_message = models.TextField(blank=True, default='')
+
+    # ---- Transcript diagnostics (populated during ingestion) ----
+    transcript_source = models.CharField(
+        max_length=50, blank=True, default='',
+        help_text="Source type used for transcript retrieval (e.g. 'youtube')"
+    )
+    transcript_length = models.IntegerField(
+        null=True, blank=True,
+        help_text="Length of retrieved transcript in characters"
+    )
+    transcript_validation_status = models.CharField(
+        max_length=10, blank=True, default='',
+        help_text="PASS or FAIL — result of TranscriptValidator"
+    )
+    transcript_retrieval_method = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text="Method used to retrieve transcript (e.g. 'youtube-transcript-api/manual-en')"
+    )
+    transcript_retrieved_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="UTC timestamp when the transcript was retrieved"
+    )
+    transcript_preview = models.TextField(
+        blank=True, default='',
+        help_text="First 500 characters of the retrieved transcript"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
