@@ -12,6 +12,7 @@ NEVER fabricates, simulates, or generates placeholder transcript text.
 
 import logging
 import subprocess
+import sys
 import json
 import re
 import os
@@ -76,10 +77,14 @@ def _retrieve_via_transcript_api(video_id: str) -> tuple[str, str]:
             transcript = transcript_list.find_generated_transcript(['en', 'en-US', 'en-GB'])
             method = "youtube-transcript-api/auto-en"
         except Exception:
-            # Try first available language
+            # Try first available language and translate to english
             for t in transcript_list:
-                transcript = t
-                method = f"youtube-transcript-api/{t.language_code}"
+                try:
+                    transcript = t.translate('en')
+                    method = f"youtube-transcript-api/{t.language_code}-translated-to-en"
+                except Exception:
+                    transcript = t
+                    method = f"youtube-transcript-api/{t.language_code}"
                 break
 
     if transcript is None:
@@ -116,10 +121,10 @@ def _retrieve_via_ytdlp(url: str) -> tuple[str, str]:
         ]:
             try:
                 cmd = [
-                    "yt-dlp",
+                    sys.executable, "-m", "yt_dlp",
                     "--skip-download",
                     sub_arg,
-                    "--sub-langs", "en.*,en",
+                    "--sub-langs", "en,te-orig,hi,en-US",
                     "--sub-format", "json3",
                     "--output", os.path.join(tmpdir, "%(id)s.%(ext)s"),
                     url,

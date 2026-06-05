@@ -132,6 +132,39 @@ def transcribe_source_input(source_input):
             ingest_youtube_source,
             build_segments_from_text,
         )
+        
+        if source_input.transcript_source and source_input.transcript_source.startswith('uploaded_'):
+            # It's a manual upload
+            if not source_input.file:
+                raise TranscriptionError("Uploaded transcript indicated but no file found.")
+            
+            ext = source_input.transcript_source.split('_')[1]
+            try:
+                from django.utils import timezone
+                source_input.file.seek(0)
+                content = source_input.file.read().decode('utf-8')
+                source_input.text_content = content
+                source_input.transcript_validation_status = 'PASS'
+                source_input.transcript_length = len(content)
+                source_input.transcript_retrieval_method = 'manual_upload'
+                source_input.transcript_retrieved_at = timezone.now()
+                source_input.transcript_preview = content[:500]
+                source_input.save()
+                
+                if ext in ['srt', 'vtt']:
+                    # Need to parse SRT/VTT for precise segments
+                    from projects.transcription.subtitle_parser import parse_subtitles
+                    segments, duration_seconds = parse_subtitles(content, ext)
+                    normalized_text = "\n".join(s["text"] for s in segments)
+                    return content, normalized_text, segments, duration_seconds
+                else:
+                    # TXT file
+                    segments, duration_seconds = build_segments_from_text(content)
+                    normalized_text = "\n".join(s["text"] for s in segments)
+                    return content, normalized_text, segments, duration_seconds
+            except Exception as e:
+                raise TranscriptionError(f"Failed to parse uploaded transcript: {str(e)}")
+        
         # This raises TranscriptValidationError if all layers fail
         diagnostics = ingest_youtube_source(source_input)
         transcript_text = source_input.text_content  # already saved by ingest_youtube_source

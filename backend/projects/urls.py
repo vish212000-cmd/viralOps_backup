@@ -1,7 +1,9 @@
 from django.urls import path
 from .views import (
     ProjectViewSet, SourceInputViewSet, GeneratedAssetViewSet,
-    TemplateViewSet, MemoryRecordViewSet, AdminOpsViewSet
+    TemplateViewSet, MemoryRecordViewSet, AdminOpsViewSet,
+    MomentViewSet, ContentIntelligenceViewSet, ExportViewSet, SearchViewSet,
+    TranscriptSegmentViewSet,
 )
 from .analytics import (
     WorkspaceSummaryView, WorkspaceTrendsView,
@@ -9,83 +11,48 @@ from .analytics import (
 )
 from .health import HealthzView, ReadyView
 
-
 # Explicit router mappings for ViewSets
-project_list = ProjectViewSet.as_view({
-    'get': 'list',
-    'post': 'create'
-})
-project_detail = ProjectViewSet.as_view({
-    'get': 'retrieve',
-    'put': 'update',
-    'patch': 'partial_update',
-    'delete': 'destroy'
-})
+project_list = ProjectViewSet.as_view({'get': 'list', 'post': 'create'})
+project_detail = ProjectViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'})
 
-source_list = SourceInputViewSet.as_view({
-    'get': 'list',
-    'post': 'create'
-})
-source_detail = SourceInputViewSet.as_view({
-    'get': 'retrieve',
-    'delete': 'destroy'
-})
-source_download = SourceInputViewSet.as_view({
-    'get': 'download'
-})
+source_list = SourceInputViewSet.as_view({'get': 'list', 'post': 'create'})
+source_detail = SourceInputViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'})
+source_download = SourceInputViewSet.as_view({'get': 'download'})
 
-asset_list = GeneratedAssetViewSet.as_view({
-    'get': 'list',
-})
-asset_detail = GeneratedAssetViewSet.as_view({
-    'get': 'retrieve',
-    'delete': 'destroy'
-})
+asset_list = GeneratedAssetViewSet.as_view({'get': 'list'})
+asset_detail = GeneratedAssetViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'})
 
-template_list = TemplateViewSet.as_view({
-    'get': 'list',
-    'post': 'create'
-})
-template_detail = TemplateViewSet.as_view({
-    'get': 'retrieve',
-    'put': 'update',
-    'delete': 'destroy'
-})
+template_list = TemplateViewSet.as_view({'get': 'list', 'post': 'create'})
+template_detail = TemplateViewSet.as_view({'get': 'retrieve', 'put': 'update', 'delete': 'destroy'})
 
-memory_list = MemoryRecordViewSet.as_view({
-    'get': 'list',
-    'post': 'create'
-})
-memory_detail = MemoryRecordViewSet.as_view({
-    'get': 'retrieve',
-    'put': 'update',
-    'delete': 'destroy'
-})
+memory_list = MemoryRecordViewSet.as_view({'get': 'list', 'post': 'create'})
+memory_detail = MemoryRecordViewSet.as_view({'get': 'retrieve', 'put': 'update', 'delete': 'destroy'})
 
-admin_summary = AdminOpsViewSet.as_view({
-    'get': 'dashboard_summary'
-})
-admin_jobs = AdminOpsViewSet.as_view({
-    'get': 'job_queue'
-})
-admin_logs = AdminOpsViewSet.as_view({
-    'get': 'audit_logs'
-})
-admin_retry = AdminOpsViewSet.as_view({
-    'post': 'retry_job'
-})
+admin_summary = AdminOpsViewSet.as_view({'get': 'dashboard_summary'})
+admin_jobs = AdminOpsViewSet.as_view({'get': 'job_queue'})
+admin_logs = AdminOpsViewSet.as_view({'get': 'audit_logs'})
+admin_retry = AdminOpsViewSet.as_view({'post': 'retry_job'})
+
+# New ViewSets
+moment_list = MomentViewSet.as_view({'get': 'list'})
+moment_toggle_fav = MomentViewSet.as_view({'post': 'toggle_favorite'})
+moment_gen_assets = MomentViewSet.as_view({'post': 'generate_assets'})
+intelligence_detail = ContentIntelligenceViewSet.as_view({'get': 'retrieve'})
+export_detail = ExportViewSet.as_view({'get': 'retrieve'})
+search_create = SearchViewSet.as_view({'post': 'create'})
+segment_list = TranscriptSegmentViewSet.as_view({'get': 'list'})
 
 urlpatterns = [
     # Projects
     path('orgs/<str:org_slug>/projects/', project_list, name='project-list'),
     path('orgs/<str:org_slug>/projects/<int:pk>/', project_detail, name='project-detail'),
     path('orgs/<str:org_slug>/projects/<int:pk>/export_pack/', ProjectViewSet.as_view({'get': 'export_pack'}), name='project-export-pack'),
-    
+
     # Sources (scoped to project)
     path('orgs/<str:org_slug>/projects/<int:project_id>/sources/', source_list, name='source-list'),
     path('orgs/<str:org_slug>/projects/<int:project_id>/sources/<int:pk>/', source_detail, name='source-detail'),
     path('orgs/<str:org_slug>/projects/<int:project_id>/sources/<int:pk>/download/', source_download, name='source-download'),
-    
+
     # Assets (scoped to project)
     path('orgs/<str:org_slug>/projects/<int:project_id>/assets/', asset_list, name='asset-list'),
     path('orgs/<str:org_slug>/projects/<int:project_id>/assets/<int:pk>/', asset_detail, name='asset-detail'),
@@ -93,15 +60,30 @@ urlpatterns = [
     path('orgs/<str:org_slug>/projects/<int:project_id>/assets/<int:pk>/save_version/', GeneratedAssetViewSet.as_view({'post': 'save_version'}), name='asset-save-version'),
     path('orgs/<str:org_slug>/projects/<int:project_id>/assets/<int:pk>/regenerate/', GeneratedAssetViewSet.as_view({'post': 'regenerate'}), name='asset-regenerate'),
     path('orgs/<str:org_slug>/projects/<int:project_id>/assets/<int:pk>/publish/', GeneratedAssetViewSet.as_view({'post': 'publish'}), name='asset-publish'),
-    
+
+    # ── NEW: Moments & Segments ───────────────────────────────────────────────
+    path('orgs/<str:org_slug>/projects/<int:project_id>/moments/', moment_list, name='moment-list'),
+    path('orgs/<str:org_slug>/projects/<int:project_id>/moments/<int:pk>/toggle-favorite/', moment_toggle_fav, name='moment-toggle-favorite'),
+    path('orgs/<str:org_slug>/projects/<int:project_id>/moments/<int:pk>/generate-assets/', moment_gen_assets, name='moment-generate-assets'),
+    path('orgs/<str:org_slug>/projects/<int:project_id>/segments/', segment_list, name='segment-list'),
+
+    # ── NEW: Content Intelligence ─────────────────────────────────────────────
+    path('orgs/<str:org_slug>/projects/<int:project_id>/intelligence/', intelligence_detail, name='intelligence-detail'),
+
+    # ── NEW: Export ───────────────────────────────────────────────────────────
+    path('orgs/<str:org_slug>/projects/<int:project_id>/export/', export_detail, name='project-export'),
+
+    # ── NEW: Search ───────────────────────────────────────────────────────────
+    path('orgs/<str:org_slug>/projects/<int:project_id>/search/', search_create, name='project-search'),
+
     # Templates
     path('orgs/<str:org_slug>/templates/', template_list, name='template-list'),
     path('orgs/<str:org_slug>/templates/<int:pk>/', template_detail, name='template-detail'),
-    
+
     # Memory/Preferences
     path('orgs/<str:org_slug>/memory/', memory_list, name='memory-list'),
     path('orgs/<str:org_slug>/memory/<str:key>/', memory_detail, name='memory-detail'),
-    
+
     # Admin Panel APIs
     path('adminops/summary/', admin_summary, name='admin-summary'),
     path('adminops/jobs/', admin_jobs, name='admin-jobs'),

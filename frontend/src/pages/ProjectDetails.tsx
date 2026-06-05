@@ -16,9 +16,41 @@ import {
 // ---------------------------------------------------------------------------
 // Transcript Diagnostics Panel
 // ---------------------------------------------------------------------------
-function TranscriptDiagnosticsPanel({ source }: { source: SourceInput }) {
+function TranscriptDiagnosticsPanel({ source, onUploadSuccess }: { source: SourceInput, onUploadSuccess?: () => void }) {
   const isYouTube = source.type === 'YOUTUBE';
+  const { projectId } = useParams<{ projectId: string }>();
+  const { showToast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   if (!isYouTube) return null;
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !projectId) return;
+
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!['srt', 'vtt', 'txt'].includes(ext || '')) {
+      showToast('Unsupported format. Please upload SRT, VTT, or TXT.', 'error');
+      return;
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      await api.post(`/api/orgs/${api.orgSlug}/projects/${projectId}/sources/${source.id}/upload_transcript/`, formData);
+      showToast('Transcript uploaded successfully. Restarting pipeline...', 'success');
+      if (onUploadSuccess) onUploadSuccess();
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to upload transcript.', 'error');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const status = source.transcript_validation_status;
   const hasDiagnostics = !!status;
@@ -164,6 +196,30 @@ function TranscriptDiagnosticsPanel({ source }: { source: SourceInput }) {
                 <strong>Error:</strong> {source.error_message}
                 <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: 'hsl(var(--danger) / 0.8)', fontWeight: 600 }}>
                   ⛔ Gemini generation was blocked — no AI assets were created from invalid data.
+                </div>
+                
+                <div style={{ marginTop: '1.5rem', padding: '1.25rem', background: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--danger) / 0.3)' }}>
+                  <h4 style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))', marginBottom: '0.5rem' }}>Manual Fallback Available</h4>
+                  <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.8rem', marginBottom: '1rem', lineHeight: 1.5 }}>
+                    YouTube has blocked our automated retrieval. You can bypass this by uploading the video's transcript manually. 
+                    We support <strong>.srt</strong>, <strong>.vtt</strong>, or plain <strong>.txt</strong> files.
+                  </p>
+                  
+                  <input 
+                    type="file" 
+                    accept=".srt,.vtt,.txt" 
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    style={{ display: 'none' }}
+                    id={`upload-transcript-${source.id}`}
+                  />
+                  <Button 
+                    variant="primary" 
+                    loading={uploading}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Upload Transcript (SRT, VTT, TXT)
+                  </Button>
                 </div>
               </div>
             )}
@@ -457,9 +513,14 @@ export default function ProjectDetails() {
           </div>
           
           {project.status === 'COMPLETED' && (
-            <Button onClick={handleExport}>
-              <Download size={16} /> Export Content Pack
-            </Button>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <Button onClick={() => navigate(`/projects/${projectId}/moments`)}>
+                <Sparkles size={16} /> Open Moments Workspace
+              </Button>
+              <Button variant="secondary" onClick={handleExport}>
+                <Download size={16} /> Export Content Pack
+              </Button>
+            </div>
           )}
         </header>
 
@@ -526,7 +587,8 @@ export default function ProjectDetails() {
               {activeTab === 'source' ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   {/* Transcript Diagnostics Panel — YouTube only */}
-                  {activeSource && <TranscriptDiagnosticsPanel source={activeSource} />}
+                  {/* Transcript Diagnostics Panel — YouTube only */}
+                  {activeSource && <TranscriptDiagnosticsPanel source={activeSource} onUploadSuccess={loadProjectDetails} />}
 
                   {/* Source metadata */}
                   {activeSource?.type === 'YOUTUBE' && activeSource.source_url && (

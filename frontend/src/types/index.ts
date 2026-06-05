@@ -61,10 +61,14 @@ export interface SourceInput {
 }
 
 export interface TranscriptSegment {
-  start: number;
-  end: number;
-  speaker: string;
+  id: number;
+  transcript_record: number;
+  start_time: number;
+  end_time: number;
   text: string;
+  speaker: string;
+  segment_index: number;
+  created_at: string;
 }
 
 export interface TranscriptRecord {
@@ -72,7 +76,8 @@ export interface TranscriptRecord {
   source_input: number;
   raw_text: string;
   normalized_text: string;
-  segments: TranscriptSegment[];
+  segments: any; // old JSON format
+  segment_list?: TranscriptSegment[]; // new DB format
   created_at: string;
 }
 
@@ -125,10 +130,32 @@ export interface GeneratedAsset {
   content: string;
   metadata: Record<string, any>;
   is_favorite: boolean;
+  moment?: number;
   created_at: string;
   updated_at: string;
   versions?: GeneratedAssetVersion[];
   publish_records?: SocialPublishRecord[];
+}
+
+export type MomentCategory = 'HOOK' | 'VIRAL' | 'STORY' | 'EMOTIONAL' | 'EDUCATIONAL' | 'CTA';
+
+export interface Moment {
+  id: number;
+  project: number;
+  source_input: number | null;
+  title: string;
+  category: MomentCategory;
+  score: number;
+  start_time: string;
+  end_time: string;
+  excerpt: string;
+  metadata: Record<string, any>;
+  is_favorite: boolean;
+  video_clip_url: string | null;
+  segments: TranscriptSegment[];
+  generated_assets?: GeneratedAsset[];
+  created_at: string;
+  updated_at: string;
 }
 
 export type TemplateType = 'HOOK' | 'CTA' | 'SCRIPT';

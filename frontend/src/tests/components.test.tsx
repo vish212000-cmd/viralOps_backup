@@ -171,10 +171,10 @@ describe('Dashboard Page', () => {
 });
 
 // Import newly implemented page components for testing
-const Sidebar = React.lazy(() => import('../components/Sidebar'));
-const Billing = React.lazy(() => import('../pages/Billing'));
-const Analytics = React.lazy(() => import('../pages/Analytics'));
-const Policies = React.lazy(() => import('../pages/Policies'));
+import Sidebar from '../components/Sidebar';
+import Billing from '../pages/Billing';
+import Analytics from '../pages/Analytics';
+import Policies from '../pages/Policies';
 
 describe('Unified Sidebar Component', () => {
   it('renders logo and navigation links', async () => {

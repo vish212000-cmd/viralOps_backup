@@ -86,6 +86,21 @@ class TranscriptRecord(models.Model):
     def __str__(self):
         return f"Transcript for Source {self.source_input.id}"
 
+class TranscriptSegment(models.Model):
+    transcript_record = models.ForeignKey(TranscriptRecord, on_delete=models.CASCADE, related_name='segment_list')
+    start_time = models.FloatField(default=0.0)
+    end_time = models.FloatField(default=0.0)
+    text = models.TextField(blank=True, default='')
+    speaker = models.CharField(max_length=255, blank=True, default='')
+    segment_index = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['segment_index', 'start_time']
+
+    def __str__(self):
+        return f"Segment {self.segment_index} ({self.start_time}-{self.end_time})"
+
 class ProcessingJob(models.Model):
     STATUS_CHOICES = [
         ('PENDING', 'Pending'),
@@ -127,6 +142,7 @@ class GeneratedAsset(models.Model):
     content = models.TextField(help_text="Standard content text or JSON string")
     metadata = models.JSONField(default=dict, blank=True, help_text="Additional JSON metadata (e.g. timestamps, visual prompts)")
     is_favorite = models.BooleanField(default=False)
+    moment = models.ForeignKey('Moment', on_delete=models.SET_NULL, null=True, blank=True, related_name='generated_assets')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -225,3 +241,60 @@ class SocialPublishRecord(models.Model):
     def __str__(self):
         return f"Publish {self.asset.id} to {self.platform} ({self.status})"
 
+
+class Moment(models.Model):
+    """AI-detected viral/hook/story/emotional moments within a transcript."""
+    CATEGORY_CHOICES = [
+        ('HOOK', 'Hook Moment'),
+        ('VIRAL', 'Viral Moment'),
+        ('STORY', 'Story Moment'),
+        ('EMOTIONAL', 'Emotional Moment'),
+        ('EDUCATIONAL', 'Educational Moment'),
+        ('CTA', 'CTA Moment'),
+    ]
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='moments')
+    source_input = models.ForeignKey(
+        SourceInput, on_delete=models.CASCADE, related_name='moments',
+        null=True, blank=True
+    )
+    title = models.CharField(max_length=255)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    score = models.IntegerField(default=0, help_text="Viral/engagement score 0-100")
+    start_time = models.CharField(max_length=20, blank=True, default='', help_text="e.g. '0:45' or '45.2'")
+    end_time = models.CharField(max_length=20, blank=True, default='', help_text="e.g. '1:30' or '90.5'")
+    excerpt = models.TextField(blank=True, default='', help_text="Transcript excerpt for this moment")
+    metadata = models.JSONField(default=dict, blank=True, help_text="Additional scoring data, visual prompts, etc.")
+    is_favorite = models.BooleanField(default=False)
+    video_clip_url = models.URLField(blank=True, default='', help_text="URL to the generated clip video")
+    segments = models.ManyToManyField('TranscriptSegment', blank=True, related_name='moments')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-score', 'created_at']
+
+    def __str__(self):
+        return f"[{self.category}] {self.title} (score={self.score}) — {self.project.name}"
+
+
+class ContentIntelligenceRecord(models.Model):
+    """
+    Gemini-powered content analysis — topics, keywords, entities, summary,
+    viral/emotional/educational moment metadata.
+    """
+    project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name='intelligence')
+    source_input = models.OneToOneField(
+        SourceInput, on_delete=models.CASCADE, related_name='intelligence',
+        null=True, blank=True
+    )
+    summary = models.TextField(blank=True, default='', help_text="AI-generated 2-3 sentence summary")
+    topics = models.JSONField(default=list, help_text="List of main topic strings")
+    keywords = models.JSONField(default=list, help_text="List of keyword strings")
+    entities = models.JSONField(default=list, help_text="Named entities: people, brands, places")
+    emotional_moments = models.JSONField(default=list, help_text="High-emotion transcript segments")
+    viral_score = models.IntegerField(default=0, help_text="Overall virality potential 0-100")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Intelligence for Project: {self.project.name}"
