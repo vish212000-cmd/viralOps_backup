@@ -1,3 +1,15 @@
+"""
+AI Service — Gemini social asset generation.
+
+CRITICAL GATE:
+  For YouTube sources, validate_transcript() MUST be called before
+  generate_social_assets() is invoked. If validation fails, this function
+  will raise TranscriptValidationError and Gemini will NOT execute.
+
+  The mock fallback has been removed. If the Gemini API key is not configured,
+  this function raises RuntimeError rather than silently returning mock data.
+"""
+
 import os
 import json
 import logging
@@ -10,132 +22,147 @@ logger = logging.getLogger(__name__)
 if getattr(settings, 'GEMINI_API_KEY', ''):
     genai.configure(api_key=settings.GEMINI_API_KEY)
 
-def generate_social_assets(title, source_type, content_text, memory_settings=None, templates=None):
+
+def generate_social_assets(
+    title: str,
+    source_type: str,
+    content_text: str,
+    memory_settings: dict = None,
+    templates=None,
+    transcript_diagnostics: dict = None,
+) -> dict:
     """
     Call Gemini API to generate short-form social assets from long-form content.
-    If no key is configured, fall back to a rich mock generator.
+
+    For YouTube sources, transcript_diagnostics must be provided with status='PASS'.
+    This function enforces the Gemini execution gate for YouTube — it will raise
+    TranscriptValidationError if validation was not passed upstream.
+
+    Args:
+        title:                  Content title.
+        source_type:            Source type string (e.g. 'YOUTUBE', 'PDF').
+        content_text:           The validated transcript or article text.
+        memory_settings:        Optional brand voice memory dict.
+        templates:              Optional template overrides (unused currently).
+        transcript_diagnostics: Required for YOUTUBE sources. Must have status='PASS'.
+
+    Returns:
+        Parsed JSON dict with hooks, titles, captions, ctas, hashtags, thumbnail_copy, scripts.
+
+    Raises:
+        TranscriptValidationError: If source is YouTube and diagnostics show FAIL.
+        RuntimeError:              If Gemini API key is not configured.
+        Exception:                 If Gemini API call fails.
     """
-    api_key = getattr(settings, 'GEMINI_API_KEY', '')
-    
-    # Structure memory/preferences into the prompt
+    from projects.services.transcript_validator import TranscriptValidationError
+
+    # --- GEMINI EXECUTION GATE (YouTube) ------------------------------------
+    if source_type == 'YOUTUBE':
+        if transcript_diagnostics is None:
+            raise TranscriptValidationError(
+                "Gemini generation blocked: transcript_diagnostics not provided for YOUTUBE source. "
+                "validate_transcript() must be called before generate_social_assets().",
+                diagnostics={"status": "FAIL", "failures": ["transcript_diagnostics missing"]}
+            )
+        if transcript_diagnostics.get("status") != "PASS":
+            failures = transcript_diagnostics.get("failures", ["Unknown validation failure"])
+            raise TranscriptValidationError(
+                f"Gemini generation blocked: transcript validation status is "
+                f"'{transcript_diagnostics.get('status')}'. "
+                f"Failures: {'; '.join(failures)}",
+                diagnostics=transcript_diagnostics
+            )
+        logger.info(
+            f"[GeminiGate] PASS — YouTube transcript validated. "
+            f"Length={transcript_diagnostics.get('length')}, "
+            f"Method={transcript_diagnostics.get('retrieval_method')}"
+        )
+
+    # --- Build memory/brand voice prompt snippet ---------------------------
     memory_prompt = ""
     if memory_settings:
         brand_tone_val = memory_settings.get('BRAND_TONE')
-        if isinstance(brand_tone_val, dict):
-            brand_tone = brand_tone_val.get('tone', 'Professional, engaging, and authoritative')
-        else:
-            brand_tone = brand_tone_val or 'Professional, engaging, and authoritative'
-            
+        brand_tone = (
+            brand_tone_val.get('tone', 'Professional, engaging, and authoritative')
+            if isinstance(brand_tone_val, dict)
+            else (brand_tone_val or 'Professional, engaging, and authoritative')
+        )
+
         style_guide_val = memory_settings.get('STYLE_GUIDE')
-        if isinstance(style_guide_val, dict):
-            style_guide = style_guide_val.get('guide', 'Clear, clean formatting, limit emoji use')
-        else:
-            style_guide = style_guide_val or 'Clear, clean formatting, limit emoji use'
-            
+        style_guide = (
+            style_guide_val.get('guide', 'Clear, clean formatting, limit emoji use')
+            if isinstance(style_guide_val, dict)
+            else (style_guide_val or 'Clear, clean formatting, limit emoji use')
+        )
+
         preferred_hooks_val = memory_settings.get('PREFERRED_HOOKS')
-        if isinstance(preferred_hooks_val, dict):
-            preferred_hooks = preferred_hooks_val.get('hooks', '')
-        else:
-            preferred_hooks = preferred_hooks_val or ''
-        
+        preferred_hooks = (
+            preferred_hooks_val.get('hooks', '')
+            if isinstance(preferred_hooks_val, dict)
+            else (preferred_hooks_val or '')
+        )
+
         memory_prompt = f"""
         Tone of Voice: {brand_tone}
         Style Guide: {style_guide}
         Preferred Hooks Style: {preferred_hooks}
         """
 
-
-    # Structured prompt requesting JSON output
+    # --- Build Gemini prompt -----------------------------------------------
     prompt = f"""
-    You are an expert social media copywriter and growth marketer.
-    I want you to analyze the following long-form content text and generate structured short-form social-ready assets.
+You are an expert social media copywriter and growth marketer.
+Analyze the following long-form content text and generate structured short-form social-ready assets.
+Base your output STRICTLY on the provided content. Do not invent topics not present in the text.
 
-    Content Title: {title}
-    Source Type: {source_type}
-    
-    {memory_prompt}
-    
-    Content text to analyze:
-    {content_text[:8000]}  # Clip to 8000 chars for safety
+Content Title: {title}
+Source Type: {source_type}
 
-    You MUST return a JSON object with the exact keys:
-    1. "hooks": list of 3 high-engaging hook variations for video openers.
-    2. "titles": list of 3 clickable video title variations.
-    3. "captions": list of 3 caption options (shorts, reels, tiktok formats).
-    4. "ctas": list of 3 call-to-action options (e.g. follow, comment, download link).
-    5. "hashtags": list of 8 trending and relevant hashtags.
-    6. "thumbnail_copy": list of 3 short, punchy texts to display on video thumbnails (max 4 words each).
-    7. "scripts": list of 2 short video script scripts (under 60 seconds each), with visual prompts and spoken words.
-    
-    Ensure your output is valid JSON. Do not include markdown code block styling in the JSON output, start directly with the brackets.
-    """
+{memory_prompt}
 
-    if api_key:
-        try:
-            model = genai.GenerativeModel('gemini-2.5-flash')
-            response = model.generate_content(prompt)
-            text_response = response.text.strip()
-            
-            # Clean response if markdown wrappers exist
-            if text_response.startswith("```json"):
-                text_response = text_response[7:]
-            if text_response.endswith("```"):
-                text_response = text_response[:-3]
-            text_response = text_response.strip()
-            
-            parsed_data = json.loads(text_response)
-            logger.info("Successfully generated assets via Gemini API.")
-            return parsed_data
-        except Exception as e:
-            logger.error(f"Gemini API generation failed: {str(e)}. Falling back to mock data.")
-            # Fall through to mock generator
+Content text to analyze:
+{content_text[:8000]}
 
-    # Mock Fallback Data Generator
-    logger.info("Generating assets using mock content generator.")
-    
-    # Extract topics or keywords from title/content
-    keywords = [x.lower() for x in title.split() if len(x) > 3][:3]
-    kw_str = " ".join(keywords) or "content creation"
-    
-    mock_data = {
-        "hooks": [
-            f"Here's the secret to {kw_str} that no one is telling you...",
-            f"Stop scrolling if you want to master {kw_str} today.",
-            f"I analyzed 100 creators doing {kw_str}, and they all make this one mistake."
-        ],
-        "titles": [
-            f"The Ultimate {title} Guide",
-            f"Mastering {kw_str} in 60 Seconds",
-            f"Why Your {title} is Failing (And How to Fix It)"
-        ],
-        "captions": [
-            f"If you're struggling with {kw_str}, you need to watch this. Here is the step-by-step breakdown of how to improve your workflow. Save this video for later! 📈",
-            f"The honest truth about {kw_str}. Let me know in the comments if you agree or disagree! 👇",
-            f"Quick tip of the day: Stop overcomplicating your {kw_str}. Start small, iterate fast, and build consistency. Check out our bio for a full guide!"
-        ],
-        "ctas": [
-            f"Follow for daily tips on {kw_str}!",
-            "Leave a comment with your biggest challenge.",
-            "Click the link in our bio to grab our free resource."
-        ],
-        "hashtags": [
-            f"#{x.replace(' ', '')}" for x in [kw_str, "viraltips", "creators", "growthmindset", "contentcreator", "marketingtips", "productivity", "viralops"]
-        ],
-        "thumbnail_copy": [
-            "SECRET revealed!",
-            "DO NOT miss this!",
-            "Fix this now!"
-        ],
-        "scripts": [
-            {
-                "platform": "SHORTS",
-                "script": "[Visual: Creator looking shocked at camera]\nSpeaker: Most creators are doing this completely wrong. They think it's about spending hours editing. But here's the reality: it's all about hook structure. You have exactly 3 seconds to catch attention. Optimize that, and you win. Follow for part 2!"
-            },
-            {
-                "platform": "TIKTOK",
-                "script": "[Visual: B-roll of coding/writing screens]\nSpeaker: Want to scale your output without burning out? Start repurposing. One long podcast can become 10 micro-assets. That's how top creators publish daily. Stop creating from scratch, start editing from what you already have."
-            }
-        ]
-    }
-    
-    return mock_data
+You MUST return a JSON object with the exact keys:
+1. "hooks": list of 3 high-engaging hook variations for video openers.
+2. "titles": list of 3 clickable video title variations.
+3. "captions": list of 3 caption options (shorts, reels, tiktok formats).
+4. "ctas": list of 3 call-to-action options (e.g. follow, comment, download link).
+5. "hashtags": list of 8 trending and relevant hashtags.
+6. "thumbnail_copy": list of 3 short, punchy texts to display on video thumbnails (max 4 words each).
+7. "scripts": list of 2 short video script scripts (under 60 seconds each), with visual prompts and spoken words.
+
+Ensure your output is valid JSON. Do not include markdown code block styling, start directly with {{.
+"""
+
+    # --- Gemini API call ----------------------------------------------------
+    api_key = getattr(settings, 'GEMINI_API_KEY', '')
+    if not api_key:
+        raise RuntimeError(
+            "Gemini API key not configured. Set GEMINI_API_KEY in environment variables. "
+            "No mock fallback is available — real API key required."
+        )
+
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        response = model.generate_content(prompt)
+        text_response = response.text.strip()
+
+        # Strip markdown wrappers if present
+        if text_response.startswith("```json"):
+            text_response = text_response[7:]
+        if text_response.startswith("```"):
+            text_response = text_response[3:]
+        if text_response.endswith("```"):
+            text_response = text_response[:-3]
+        text_response = text_response.strip()
+
+        parsed_data = json.loads(text_response)
+        logger.info(
+            f"[GeminiService] Successfully generated assets. "
+            f"Source={source_type}, Title='{title[:50]}'"
+        )
+        return parsed_data
+
+    except Exception as e:
+        logger.error(f"[GeminiService] Gemini API generation failed: {e}")
+        raise

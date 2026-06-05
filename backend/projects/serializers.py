@@ -4,7 +4,8 @@ from organizations.models import Organization, Membership
 from .models import (
     Project, SourceInput, TranscriptRecord, ProcessingJob,
     GeneratedAsset, GeneratedAssetVersion, Template, MemoryRecord,
-    UsageEvent, AuditLog, SocialPublishRecord
+    UsageEvent, AuditLog, SocialPublishRecord,
+    Moment, ContentIntelligenceRecord, TranscriptSegment,
 )
 
 User = get_user_model()
@@ -42,10 +43,18 @@ class SourceInputSerializer(serializers.ModelSerializer):
     class Meta:
         model = SourceInput
         fields = (
-            'id', 'project', 'type', 'title', 'source_url', 'file_name', 
-            'file_size', 'file', 'text_content', 'status', 'error_message', 'created_at', 'updated_at'
+            'id', 'project', 'type', 'title', 'source_url', 'file_name',
+            'file_size', 'file', 'text_content', 'status', 'error_message',
+            # Transcript diagnostics
+            'transcript_source', 'transcript_length', 'transcript_validation_status',
+            'transcript_retrieval_method', 'transcript_retrieved_at', 'transcript_preview',
+            'created_at', 'updated_at'
         )
-        read_only_fields = ('project', 'status', 'error_message')
+        read_only_fields = (
+            'project', 'status', 'error_message',
+            'transcript_source', 'transcript_length', 'transcript_validation_status',
+            'transcript_retrieval_method', 'transcript_retrieved_at', 'transcript_preview',
+        )
 
     def validate(self, data):
         stype = data.get('type')
@@ -92,10 +101,17 @@ class SourceInputSerializer(serializers.ModelSerializer):
         return data
 
 
+class TranscriptSegmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TranscriptSegment
+        fields = ('id', 'transcript_record', 'start_time', 'end_time', 'text', 'speaker', 'segment_index', 'created_at')
+
 class TranscriptRecordSerializer(serializers.ModelSerializer):
+    segment_list = TranscriptSegmentSerializer(many=True, read_only=True)
+
     class Meta:
         model = TranscriptRecord
-        fields = ('id', 'source_input', 'raw_text', 'normalized_text', 'segments', 'created_at')
+        fields = ('id', 'source_input', 'raw_text', 'normalized_text', 'segments', 'segment_list', 'created_at')
 
 class ProcessingJobSerializer(serializers.ModelSerializer):
     class Meta:
@@ -124,7 +140,7 @@ class GeneratedAssetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = GeneratedAsset
-        fields = ('id', 'project', 'type', 'platform', 'content', 'metadata', 'is_favorite', 'created_at', 'updated_at', 'versions', 'publish_records')
+        fields = ('id', 'project', 'type', 'platform', 'content', 'metadata', 'is_favorite', 'moment', 'created_at', 'updated_at', 'versions', 'publish_records')
         read_only_fields = ('project',)
 
 class TemplateSerializer(serializers.ModelSerializer):
@@ -152,3 +168,28 @@ class AuditLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = AuditLog
         fields = ('id', 'organization', 'user', 'username', 'action', 'details', 'ip_address', 'created_at')
+
+
+class MomentSerializer(serializers.ModelSerializer):
+    segments = TranscriptSegmentSerializer(many=True, read_only=True)
+    generated_assets = GeneratedAssetSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Moment
+        fields = (
+            'id', 'project', 'source_input', 'title', 'category', 'score',
+            'start_time', 'end_time', 'excerpt', 'metadata', 'is_favorite',
+            'video_clip_url', 'segments', 'generated_assets',
+            'created_at', 'updated_at',
+        )
+        read_only_fields = ('project', 'source_input', 'score', 'metadata', 'segments', 'generated_assets')
+
+
+class ContentIntelligenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContentIntelligenceRecord
+        fields = (
+            'id', 'project', 'source_input', 'summary', 'topics', 'keywords',
+            'entities', 'emotional_moments', 'viral_score', 'created_at', 'updated_at',
+        )
+        read_only_fields = ('project', 'source_input')

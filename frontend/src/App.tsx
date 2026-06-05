@@ -7,6 +7,7 @@ const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const ProjectDetails = lazy(() => import('./pages/ProjectDetails'));
+const MomentsWorkspace = lazy(() => import('./pages/MomentsWorkspace'));
 const Preferences = lazy(() => import('./pages/Preferences'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const Billing = lazy(() => import('./pages/Billing'));
@@ -86,6 +87,11 @@ function App() {
                 <Route path="/projects/:projectId" element={
                   <PrivateRoute>
                     <ProjectDetails />
+                  </PrivateRoute>
+                } />
+                <Route path="/projects/:projectId/moments" element={
+                  <PrivateRoute>
+                    <MomentsWorkspace />
                   </PrivateRoute>
                 } />
                 <Route path="/preferences" element={

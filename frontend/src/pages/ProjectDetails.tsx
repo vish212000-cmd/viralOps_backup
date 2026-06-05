@@ -10,8 +10,249 @@ import { Card } from '../components/design/Card';
 import { 
   ArrowLeft, Loader2, AlertTriangle, FileText, CheckCircle2,
   Star, Edit2, RotateCw, Download, Save, History, Folder, Settings, Shield, LogOut, Sparkles,
-  Share2, ExternalLink
+  Share2, ExternalLink, ShieldCheck, ShieldX, Clock, Link2, Hash, Eye
 } from 'lucide-react';
+
+// ---------------------------------------------------------------------------
+// Transcript Diagnostics Panel
+// ---------------------------------------------------------------------------
+function TranscriptDiagnosticsPanel({ source, onUploadSuccess }: { source: SourceInput, onUploadSuccess?: () => void }) {
+  const isYouTube = source.type === 'YOUTUBE';
+  const { projectId } = useParams<{ projectId: string }>();
+  const { showToast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  if (!isYouTube) return null;
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !projectId) return;
+
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!['srt', 'vtt', 'txt'].includes(ext || '')) {
+      showToast('Unsupported format. Please upload SRT, VTT, or TXT.', 'error');
+      return;
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      await api.post(`/api/orgs/${api.orgSlug}/projects/${projectId}/sources/${source.id}/upload_transcript/`, formData);
+      showToast('Transcript uploaded successfully. Restarting pipeline...', 'success');
+      if (onUploadSuccess) onUploadSuccess();
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to upload transcript.', 'error');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const status = source.transcript_validation_status;
+  const hasDiagnostics = !!status;
+  const isPassed = status === 'PASS';
+  const isFailed = status === 'FAIL';
+
+  const statusColor = isPassed
+    ? 'hsl(var(--success))'
+    : isFailed
+    ? 'hsl(var(--danger))'
+    : 'hsl(var(--text-dim))';
+
+  const statusBg = isPassed
+    ? 'hsl(var(--success) / 0.08)'
+    : isFailed
+    ? 'hsl(var(--danger) / 0.08)'
+    : 'hsl(var(--border-muted) / 0.2)';
+
+  const formatLength = (n: number | null) =>
+    n != null ? n.toLocaleString() + ' chars' : '—';
+
+  const formatTimestamp = (ts: string | null) => {
+    if (!ts) return '—';
+    try {
+      return new Date(ts).toLocaleString();
+    } catch {
+      return ts;
+    }
+  };
+
+  return (
+    <div style={{
+      border: `1px solid ${isPassed ? 'hsl(var(--success) / 0.3)' : isFailed ? 'hsl(var(--danger) / 0.3)' : 'hsl(var(--border-muted))'}`,
+      borderRadius: '12px',
+      overflow: 'hidden',
+      marginBottom: '1.5rem',
+    }}>
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.75rem',
+        padding: '1rem 1.5rem',
+        background: statusBg,
+        borderBottom: `1px solid ${isPassed ? 'hsl(var(--success) / 0.2)' : isFailed ? 'hsl(var(--danger) / 0.2)' : 'hsl(var(--border-muted))'}`,
+      }}>
+        {isPassed ? (
+          <ShieldCheck size={20} color="hsl(var(--success))" />
+        ) : isFailed ? (
+          <ShieldX size={20} color="hsl(var(--danger))" />
+        ) : (
+          <ShieldCheck size={20} color="hsl(var(--text-dim))" />
+        )}
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'hsl(var(--text-primary))' }}>
+            Transcript Diagnostics
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-dim))' }}>
+            Validation results for YouTube transcript retrieval
+          </div>
+        </div>
+        {hasDiagnostics && (
+          <div style={{
+            padding: '0.3rem 0.9rem',
+            borderRadius: '20px',
+            fontSize: '0.75rem',
+            fontWeight: 800,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            background: isPassed ? 'hsl(var(--success) / 0.15)' : 'hsl(var(--danger) / 0.15)',
+            color: statusColor,
+            border: `1px solid ${statusColor}`,
+          }}>
+            {status}
+          </div>
+        )}
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: '1.5rem' }}>
+        {!hasDiagnostics ? (
+          <div style={{ color: 'hsl(var(--text-dim))', fontSize: '0.9rem', textAlign: 'center', padding: '1rem 0' }}>
+            Diagnostics not yet available — ingestion may still be processing.
+          </div>
+        ) : (
+          <>
+            {/* Stat grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+              gap: '1rem',
+              marginBottom: source.transcript_preview ? '1.5rem' : 0,
+            }}>
+              {[
+                {
+                  icon: <FileText size={15} />,
+                  label: 'Source',
+                  value: source.transcript_source ? source.transcript_source.toUpperCase() : '—',
+                },
+                {
+                  icon: <Hash size={15} />,
+                  label: 'Length',
+                  value: formatLength(source.transcript_length ?? null),
+                },
+                {
+                  icon: <Link2 size={15} />,
+                  label: 'Retrieval Method',
+                  value: source.transcript_retrieval_method || '—',
+                },
+                {
+                  icon: <Clock size={15} />,
+                  label: 'Retrieved At',
+                  value: formatTimestamp(source.transcript_retrieved_at ?? null),
+                },
+              ].map(stat => (
+                <div key={stat.label} style={{
+                  background: 'hsl(var(--bg-main) / 0.4)',
+                  border: '1px solid hsl(var(--border-muted) / 0.4)',
+                  borderRadius: '8px',
+                  padding: '0.75rem 1rem',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'hsl(var(--text-dim))', fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
+                    {stat.icon} {stat.label}
+                  </div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'hsl(var(--text-primary))', wordBreak: 'break-all' }}>
+                    {stat.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* FAIL reason */}
+            {isFailed && source.error_message && (
+              <div style={{
+                background: 'hsl(var(--danger) / 0.08)',
+                border: '1px solid hsl(var(--danger) / 0.25)',
+                borderRadius: '8px',
+                padding: '0.75rem 1rem',
+                marginBottom: source.transcript_preview ? '1rem' : 0,
+                fontSize: '0.85rem',
+                color: 'hsl(var(--danger))',
+              }}>
+                <strong>Error:</strong> {source.error_message}
+                <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: 'hsl(var(--danger) / 0.8)', fontWeight: 600 }}>
+                  ⛔ Gemini generation was blocked — no AI assets were created from invalid data.
+                </div>
+                
+                <div style={{ marginTop: '1.5rem', padding: '1.25rem', background: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--danger) / 0.3)' }}>
+                  <h4 style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))', marginBottom: '0.5rem' }}>Manual Fallback Available</h4>
+                  <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.8rem', marginBottom: '1rem', lineHeight: 1.5 }}>
+                    YouTube has blocked our automated retrieval. You can bypass this by uploading the video's transcript manually. 
+                    We support <strong>.srt</strong>, <strong>.vtt</strong>, or plain <strong>.txt</strong> files.
+                  </p>
+                  
+                  <input 
+                    type="file" 
+                    accept=".srt,.vtt,.txt" 
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    style={{ display: 'none' }}
+                    id={`upload-transcript-${source.id}`}
+                  />
+                  <Button 
+                    variant="primary" 
+                    loading={uploading}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Upload Transcript (SRT, VTT, TXT)
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Preview */}
+            {source.transcript_preview && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700, color: 'hsl(var(--text-dim))', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+                  <Eye size={13} /> Transcript Preview
+                </div>
+                <div style={{
+                  background: 'hsl(var(--bg-main) / 0.6)',
+                  border: '1px solid hsl(var(--border-muted) / 0.4)',
+                  borderRadius: '8px',
+                  padding: '1rem',
+                  fontSize: '0.85rem',
+                  lineHeight: 1.7,
+                  color: 'hsl(var(--text-muted))',
+                  fontFamily: 'var(--font-mono, monospace)',
+                  maxHeight: '180px',
+                  overflowY: 'auto',
+                  whiteSpace: 'pre-wrap',
+                }}>
+                  {source.transcript_preview}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 type TabType = 'hooks' | 'titles' | 'captions' | 'scripts' | 'ctas' | 'hashtags' | 'source';
 
@@ -272,9 +513,14 @@ export default function ProjectDetails() {
           </div>
           
           {project.status === 'COMPLETED' && (
-            <Button onClick={handleExport}>
-              <Download size={16} /> Export Content Pack
-            </Button>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <Button onClick={() => navigate(`/projects/${projectId}/moments`)}>
+                <Sparkles size={16} /> Open Moments Workspace
+              </Button>
+              <Button variant="secondary" onClick={handleExport}>
+                <Download size={16} /> Export Content Pack
+              </Button>
+            </div>
           )}
         </header>
 
@@ -339,19 +585,43 @@ export default function ProjectDetails() {
             {/* Tab content panel */}
             <div style={{ minHeight: '400px' }}>
               {activeTab === 'source' ? (
-                <Card style={{ padding: '2rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid hsl(var(--border-muted))', paddingBottom: '0.75rem' }}>
-                    <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <FileText size={18} /> Ingested Normalized Content
-                    </h3>
-                    <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-dim))' }}>
-                      Type: {activeSource?.type}
-                    </span>
-                  </div>
-                  <div style={{ whiteSpace: 'pre-wrap', color: 'hsl(var(--text-muted))', fontSize: '0.95rem', lineHeight: 1.6, maxHeight: '500px', overflowY: 'auto', paddingRight: '1rem' }}>
-                    {activeSource?.text_content || 'No text extracted.'}
-                  </div>
-                </Card>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  {/* Transcript Diagnostics Panel — YouTube only */}
+                  {/* Transcript Diagnostics Panel — YouTube only */}
+                  {activeSource && <TranscriptDiagnosticsPanel source={activeSource} onUploadSuccess={loadProjectDetails} />}
+
+                  {/* Source metadata */}
+                  {activeSource?.type === 'YOUTUBE' && activeSource.source_url && (
+                    <Card style={{ padding: '1.25rem 1.5rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'hsl(var(--text-dim))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Video URL</div>
+                        <a
+                          href={activeSource.source_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'hsl(var(--accent-primary))', textDecoration: 'none', fontSize: '0.9rem', wordBreak: 'break-all' }}
+                        >
+                          {activeSource.source_url} <ExternalLink size={13} />
+                        </a>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Full content preview */}
+                  <Card style={{ padding: '2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid hsl(var(--border-muted))', paddingBottom: '0.75rem' }}>
+                      <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FileText size={18} /> Ingested Normalized Content
+                      </h3>
+                      <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-dim))' }}>
+                        Type: {activeSource?.type}
+                      </span>
+                    </div>
+                    <div style={{ whiteSpace: 'pre-wrap', color: 'hsl(var(--text-muted))', fontSize: '0.95rem', lineHeight: 1.6, maxHeight: '500px', overflowY: 'auto', paddingRight: '1rem' }}>
+                      {activeSource?.text_content || 'No text extracted.'}
+                    </div>
+                  </Card>
+                </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   {activeAssets.length === 0 ? (
