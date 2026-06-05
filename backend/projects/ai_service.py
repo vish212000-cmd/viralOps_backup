@@ -72,7 +72,7 @@ def generate_social_assets(title, source_type, content_text, memory_settings=Non
 
     if api_key:
         try:
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-2.5-flash')
             response = model.generate_content(prompt)
             text_response = response.text.strip()
             
