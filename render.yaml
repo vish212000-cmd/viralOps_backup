@@ -1,0 +1,64 @@
+services:
+  # Web Service
+  - type: web
+    name: viralops-web
+    env: python
+    region: ohio
+    rootDir: backend
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn viralops.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: viralops.settings.staging
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: DATABASE_URL
+        sync: false # Set in dashboard
+      - key: CELERY_BROKER_URL
+        sync: false # Set in dashboard
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SECURE_SSL_REDIRECT
+        value: "True"
+      - key: FRONTEND_URL
+        sync: false # Set in dashboard
+
+  # Celery Worker
+  - type: worker
+    name: viralops-worker
+    env: python
+    region: ohio
+    rootDir: backend
+    buildCommand: "./build.sh"
+    startCommand: "celery -A viralops worker -l info --pool=solo"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: viralops.settings.staging
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: DATABASE_URL
+        sync: false # Set in dashboard
+      - key: CELERY_BROKER_URL
+        sync: false # Set in dashboard
+      - key: SECRET_KEY
+        sync: false # Sync with web service in dashboard
+
+  # Celery Beat
+  - type: worker
+    name: viralops-beat
+    env: python
+    region: ohio
+    rootDir: backend
+    buildCommand: "./build.sh"
+    startCommand: "celery -A viralops beat -l info"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: viralops.settings.staging
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: DATABASE_URL
+        sync: false # Set in dashboard
+      - key: CELERY_BROKER_URL
+        sync: false # Set in dashboard
+      - key: SECRET_KEY
+        sync: false # Sync with web service in dashboard

@@ -39,5 +39,22 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # Block startup on missing keys
 BLOCK_STARTUP_ON_MISSING_SECRETS = 1
 
-# Use separate database name for staging
-DATABASES['default']['NAME'] = 'viralops_staging'
+import dj_database_url
+import ssl
+
+# Database configuration using dj_database_url (Neon PostgreSQL support)
+db_from_env = dj_database_url.config(conn_max_age=600, ssl_require=True)
+if db_from_env:
+    DATABASES['default'] = db_from_env
+else:
+    # Fallback to a separate database name for staging if no DATABASE_URL provided
+    DATABASES['default']['NAME'] = 'viralops_staging'
+
+# Upstash Redis configuration for Celery (Requires SSL without cert validation)
+if CELERY_BROKER_URL.startswith('rediss://'):
+    CELERY_REDIS_BACKEND_USE_SSL = {"ssl_cert_reqs": ssl.CERT_NONE}
+    CELERY_BROKER_USE_SSL = {"ssl_cert_reqs": ssl.CERT_NONE}
+
+# Add WhiteNoise to middleware for serving static files on Render
+MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'

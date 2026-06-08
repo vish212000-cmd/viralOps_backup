@@ -17,7 +17,7 @@ import json
 import re
 import os
 import tempfile
-from datetime import datetime
+from django.utils import timezone
 
 from projects.services.transcript_validator import (
     TranscriptValidationError,
@@ -34,10 +34,12 @@ logger = logging.getLogger(__name__)
 def _extract_video_id(url: str) -> str | None:
     """Extract 11-char YouTube video ID from any YouTube URL format."""
     patterns = [
-        r'(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([a-zA-Z0-9_-]{11})',
+        r'(?:https?://)?(?:www\.)?youtube\.com/watch\?(?:.*&)?v=([a-zA-Z0-9_-]{11})',
         r'(?:https?://)?(?:www\.)?youtu\.be/([a-zA-Z0-9_-]{11})',
         r'(?:https?://)?(?:www\.)?youtube\.com/shorts/([a-zA-Z0-9_-]{11})',
         r'(?:https?://)?(?:www\.)?youtube\.com/embed/([a-zA-Z0-9_-]{11})',
+        # Non-www forms (e.g., https://youtube.com/watch?v=...)
+        r'(?:https?://)?youtube\.com/watch\?(?:.*&)?v=([a-zA-Z0-9_-]{6,11})',
     ]
     for pattern in patterns:
         match = re.search(pattern, url)
@@ -158,7 +160,9 @@ def _retrieve_via_ytdlp(url: str) -> tuple[str, str]:
 
 
 def _parse_subtitle_file(fpath: str) -> str:
-    """Parse a .json3 or .vtt subtitle file into plain text."""
+    """Parse a .json3 or .vtt subtitle file into plain text.
+    VTT parsing delegates to transcription.subtitle_parser (single implementation).
+    """
     try:
         if fpath.endswith(".json3"):
             with open(fpath, "r", encoding="utf-8") as f:
@@ -174,20 +178,23 @@ def _parse_subtitle_file(fpath: str) -> str:
         elif fpath.endswith(".vtt"):
             with open(fpath, "r", encoding="utf-8") as f:
                 content = f.read()
-            # Strip VTT headers and timing lines
-            lines = content.splitlines()
-            text_lines = []
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                if line.startswith("WEBVTT") or "-->" in line or re.match(r"^\d+$", line):
-                    continue
-                # Strip HTML tags
-                line = re.sub(r"<[^>]+>", "", line)
-                if line:
-                    text_lines.append(line)
-            return " ".join(text_lines)
+            # Delegate to canonical subtitle parser
+            from projects.transcription.subtitle_parser import parse_subtitles
+            try:
+                segments, _ = parse_subtitles(content, "vtt")
+                return " ".join(s["text"] for s in segments if s.get("text"))
+            except Exception:
+                # Fallback: strip VTT headers manually if parser fails
+                lines = content.splitlines()
+                text_lines = [
+                    re.sub(r"<[^>]+>", "", line.strip())
+                    for line in lines
+                    if line.strip()
+                    and not line.strip().startswith("WEBVTT")
+                    and "-->" not in line
+                    and not re.match(r"^\d+$", line.strip())
+                ]
+                return " ".join(t for t in text_lines if t)
     except Exception as e:
         logger.warning(f"[YT SubtitleParser] Failed to parse {fpath}: {e}")
     return ""
@@ -298,7 +305,7 @@ def ingest_youtube_source(source_input) -> dict:
         )
 
     # --- VALIDATE the retrieved transcript ---
-    retrieval_timestamp = datetime.utcnow()
+    retrieval_timestamp = timezone.now()
     diagnostics = validate_transcript(
         transcript_text=transcript_text,
         source_type="youtube",
@@ -334,19 +341,11 @@ def ingest_youtube_source(source_input) -> dict:
 def build_segments_from_text(transcript_text: str) -> tuple[list, int]:
     """
     Build segment list and duration estimate from plain transcript text.
+    Delegates to transcription.services._normalize_text_source — single implementation.
     Used downstream by tasks.py when creating TranscriptRecord.
     """
-    words = transcript_text.split()
-    duration_seconds = max(60, int(len(words) * 0.4))  # ~150 wpm
-    segments = []
-    chunk_size = 50
-    for i in range(0, len(words), chunk_size):
-        chunk = words[i : i + chunk_size]
-        start_sec = (i / chunk_size) * 20
-        segments.append({
-            "start": start_sec,
-            "end": start_sec + 20,
-            "speaker": "Speaker 1",
-            "text": " ".join(chunk),
-        })
+    from projects.transcription.services import _normalize_text_source
+    _raw, _normalized, segments, duration_seconds = _normalize_text_source(
+        transcript_text, "YouTube Transcript"
+    )
     return segments, duration_seconds
