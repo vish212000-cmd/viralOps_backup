@@ -47,18 +47,9 @@ def get_transcription_provider():
 
 
 def _extract_youtube_id(url):
-    import re
-    patterns = [
-        r'(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([a-zA-Z0-9_-]{11})',
-        r'(?:https?://)?(?:www\.)?youtu\.be/([a-zA-Z0-9_-]{11})',
-        r'(?:https?://)?(?:www\.)?youtube\.com/shorts/([a-zA-Z0-9_-]{11})',
-        r'(?:https?://)?(?:www\.)?youtube\.com/embed/([a-zA-Z0-9_-]{11})'
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, url)
-        if match:
-            return match.group(1)
-    return None
+    """Delegates to youtube_ingestion._extract_video_id — single implementation."""
+    from projects.services.youtube_ingestion import _extract_video_id
+    return _extract_video_id(url)
 
 
 def _extract_article_text(url):
