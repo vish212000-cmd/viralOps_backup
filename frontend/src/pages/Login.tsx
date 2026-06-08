@@ -36,7 +36,7 @@ export default function Login() {
   };
 
   const handleGoogleLogin = () => {
-    const clientId = (window as any).VITE_GOOGLE_OAUTH_CLIENT_ID || '';
+    const clientId = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '';
     const redirectUri = encodeURIComponent(`${window.location.origin}/auth/google/callback`);
     
     if (!clientId) {
