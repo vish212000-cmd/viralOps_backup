@@ -115,10 +115,7 @@ CORS_ALLOWED_ORIGINS_ENV = os.getenv('CORS_ALLOWED_ORIGINS', '')
 if CORS_ALLOWED_ORIGINS_ENV:
     CORS_ALLOWED_ORIGINS = [x.strip() for x in CORS_ALLOWED_ORIGINS_ENV.split(',') if x.strip()]
 else:
-    CORS_ALLOWED_ORIGINS = [
-        'http://localhost:5173',
-        'http://127.0.0.1:5173',
-    ]
+    CORS_ALLOWED_ORIGINS = []
 
 CORS_ALLOW_ALL_ORIGINS = False
 
@@ -226,6 +223,10 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@viralops.com')
 if EMAIL_HOST:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 else:
+    from django.core.exceptions import ImproperlyConfigured
+    EMAIL_VERIFICATION_REQUIRED = os.getenv('EMAIL_VERIFICATION_REQUIRED', 'False') == 'True'
+    if EMAIL_VERIFICATION_REQUIRED:
+        raise ImproperlyConfigured("EMAIL_VERIFICATION_REQUIRED is True but no EMAIL_HOST is configured for SMTP.")
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Celery Queue Routing and Dead Letter Queue Configuration

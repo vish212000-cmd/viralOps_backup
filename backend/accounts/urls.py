@@ -3,7 +3,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     UserRegisterView, CustomTokenObtainPairView, VerifyEmailView,
     ResendVerificationEmailView, PasswordResetRequestView, PasswordResetConfirmView,
-    EnableMFAView, VerifyMFAView, DisableMFAView
+    EnableMFAView, VerifyMFAView, DisableMFAView, SMTPHealthCheckView
 )
 from .google_auth import GoogleOAuthView
 
@@ -19,4 +19,5 @@ urlpatterns = [
     path('mfa/enable/', EnableMFAView.as_view(), name='auth-mfa-enable'),
     path('mfa/verify/', VerifyMFAView.as_view(), name='auth-mfa-verify'),
     path('mfa/disable/', DisableMFAView.as_view(), name='auth-mfa-disable'),
+    path('smtp-health/', SMTPHealthCheckView.as_view(), name='auth-smtp-health'),
 ]
