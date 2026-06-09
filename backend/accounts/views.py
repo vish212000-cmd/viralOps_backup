@@ -18,8 +18,11 @@ User = get_user_model()
 
 def send_verification_email(user):
     token = signing.dumps({'user_id': user.id}, salt='email-verify')
-    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
-    verification_url = f"{frontend_url}/verify-email?token={token}"
+    frontend_url = os.getenv('FRONTEND_URL')
+    if not frontend_url:
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured("FRONTEND_URL environment variable is not set.")
+    verification_url = f"{frontend_url.rstrip('/')}/verify-email?token={token}"
     
     context = {'user': user, 'verification_url': verification_url}
     html_content = render_to_string('accounts/emails/verification_email.html', context)
@@ -36,8 +39,11 @@ def send_verification_email(user):
 
 def send_password_reset_email(user):
     token = signing.dumps({'user_id': user.id}, salt='password-reset')
-    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
-    reset_url = f"{frontend_url}/reset-password?token={token}"
+    frontend_url = os.getenv('FRONTEND_URL')
+    if not frontend_url:
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured("FRONTEND_URL environment variable is not set.")
+    reset_url = f"{frontend_url.rstrip('/')}/reset-password?token={token}"
     
     context = {'user': user, 'reset_url': reset_url}
     html_content = render_to_string('accounts/emails/password_reset_email.html', context)
@@ -53,8 +59,11 @@ def send_password_reset_email(user):
     )
 
 def send_invite_email(invite):
-    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
-    invite_url = f"{frontend_url}/accept-invite?token={invite.id}"
+    frontend_url = os.getenv('FRONTEND_URL')
+    if not frontend_url:
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured("FRONTEND_URL environment variable is not set.")
+    invite_url = f"{frontend_url.rstrip('/')}/accept-invite?token={invite.id}"
     
     invited_by_name = invite.invited_by.username if invite.invited_by else 'An administrator'
     context = {
@@ -276,4 +285,22 @@ class DisableMFAView(views.APIView):
             return Response({'detail': 'MFA has been successfully disabled.'}, status=status.HTTP_200_OK)
         else:
             return Response({'error': 'Invalid verification code.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+from rest_framework.views import APIView
+from rest_framework import permissions, status
+from rest_framework.response import Response
+
+class SMTPHealthCheckView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        from django.core.mail import get_connection
+        try:
+            connection = get_connection()
+            connection.open()
+            connection.close()
+            return Response({'status': 'healthy', 'message': 'SMTP connection successful'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'status': 'unhealthy', 'message': str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 

@@ -15,7 +15,11 @@ class GoogleOAuthView(views.APIView):
 
     def post(self, request):
         code = request.data.get('code')
-        redirect_uri = request.data.get('redirect_uri', 'http://localhost:5173/auth/google/callback')
+        frontend_url = os.getenv('FRONTEND_URL')
+        if not frontend_url:
+            from django.core.exceptions import ImproperlyConfigured
+            raise ImproperlyConfigured("FRONTEND_URL environment variable is not set.")
+        redirect_uri = request.data.get('redirect_uri', f"{frontend_url.rstrip('/')}/auth/google/callback")
         
         if not code:
             return Response({'error': 'OAuth authorization code is required.'}, status=status.HTTP_400_BAD_REQUEST)

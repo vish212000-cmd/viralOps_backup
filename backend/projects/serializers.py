@@ -19,6 +19,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
         fields = ('id', 'name', 'slug', 'created_at')
+        read_only_fields = ('slug',)
 
 class MembershipSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
