@@ -1,5 +1,4 @@
 services:
-  # All-in-One Web Service (Free Tier)
   - type: web
     name: viralops-web
     env: python
@@ -24,3 +23,55 @@ services:
         value: "True"
       - key: FRONTEND_URL
         sync: false # Set in dashboard
+      - key: GEMINI_API_KEY
+        sync: false # Set in dashboard
+
+  - type: worker
+    name: viralops-celery-worker
+    env: python
+    region: ohio
+    rootDir: backend
+    buildCommand: "./build.sh"
+    startCommand: "celery -A viralops worker --loglevel=info"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: viralops.settings.staging
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: DATABASE_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SECURE_SSL_REDIRECT
+        value: "True"
+      - key: FRONTEND_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+
+  - type: worker
+    name: viralops-celery-beat
+    env: python
+    region: ohio
+    rootDir: backend
+    buildCommand: "./build.sh"
+    startCommand: "celery -A viralops beat --loglevel=info"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: viralops.settings.staging
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: DATABASE_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SECURE_SSL_REDIRECT
+        value: "True"
+      - key: FRONTEND_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

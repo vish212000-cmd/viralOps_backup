@@ -41,16 +41,15 @@ if not SECRET_KEY or SECRET_KEY == 'django-insecure-060b&@4r83dz(o()bj8a%hyd@x5a
     raise ImproperlyConfigured("SECRET_KEY environment variable is required and must be secure in production.")
 
 
-# MySQL Production Pool Database Setup
+import dj_database_url
+
+DATABASE_URL = os.getenv('DATABASE_URL')
+if not DATABASE_URL:
+    raise ImproperlyConfigured("DATABASE_URL environment variable is required and must be configured.")
+
+# Neon PostgreSQL Setup
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME', 'viralops'),
-        'USER': os.getenv('DB_USER', 'root'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', 'db'),
-        'PORT': os.getenv('DB_PORT', '3306'),
-    }
+    'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=True)
 }
 
 # Production Celery broker using Redis
