@@ -42,13 +42,8 @@ BLOCK_STARTUP_ON_MISSING_SECRETS = 1
 import dj_database_url
 import ssl
 
-# Database configuration using dj_database_url (Neon PostgreSQL support)
-db_from_env = dj_database_url.config(conn_max_age=600, ssl_require=True)
-if db_from_env:
-    DATABASES['default'] = db_from_env
-else:
-    # Fallback to a separate database name for staging if no DATABASE_URL provided
-    DATABASES['default']['NAME'] = 'viralops_staging'
+# Database configuration is strictly inherited from production.py
+# which enforces Neon PostgreSQL via DATABASE_URL.
 
 # Upstash Redis configuration for Celery (Requires SSL without cert validation)
 if CELERY_BROKER_URL.startswith('rediss://'):
