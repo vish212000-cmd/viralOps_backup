@@ -14,11 +14,9 @@ from .ai_service import generate_social_assets
 logger = logging.getLogger(__name__)
 
 try:
-    _broker_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0')
-    if _broker_url.startswith('rediss://'):
-        redis_client = redis.Redis.from_url(_broker_url, ssl_cert_reqs=None)
-    else:
-        redis_client = redis.Redis.from_url(_broker_url)
+    redis_client = redis.Redis.from_url(
+        getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0')
+    )
 except Exception as e:
     logger.warning(f"Could not connect to Redis for circuit breaker: {str(e)}")
     redis_client = None
