@@ -224,20 +224,9 @@ EMAIL_VERIFICATION_REQUIRED = os.getenv('EMAIL_VERIFICATION_REQUIRED', 'False') 
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory' if EMAIL_VERIFICATION_REQUIRED else 'optional'
 
-EMAIL_VERIFICATION_REQUIRED = os.getenv('EMAIL_VERIFICATION_REQUIRED', 'False') == 'True'
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory' if EMAIL_VERIFICATION_REQUIRED else 'optional'
-
-EMAIL_VERIFICATION_REQUIRED = os.getenv('EMAIL_VERIFICATION_REQUIRED', 'False') == 'True'
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory' if EMAIL_VERIFICATION_REQUIRED else 'optional'
-
 if EMAIL_HOST:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 else:
-    from django.core.exceptions import ImproperlyConfigured
-    if EMAIL_VERIFICATION_REQUIRED:
-        raise ImproperlyConfigured("EMAIL_VERIFICATION_REQUIRED is True but no EMAIL_HOST is configured for SMTP.")
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Celery Queue Routing and Dead Letter Queue Configuration
