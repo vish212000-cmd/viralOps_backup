@@ -33,8 +33,7 @@ if SENTRY_DSN:
             ] else event,
     )
 
-# Use console backend for email testing in staging
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# (Console email backend override removed for production/staging parity)
 
 # Block startup on missing keys
 BLOCK_STARTUP_ON_MISSING_SECRETS = 1
