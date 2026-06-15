@@ -177,6 +177,8 @@ class SourceInputViewSet(TenantScopedQuerysetMixin, viewsets.ModelViewSet):
 
             # Trigger Celery Ingestion Job
             process_source_input.delay(source_input.id)
+        except exceptions.ValidationError as ve:
+            raise ve
         except Exception as e:
             import traceback
             raise exceptions.ValidationError({"server_error": str(e), "traceback": traceback.format_exc()})
