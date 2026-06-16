@@ -75,15 +75,10 @@ CSP_FONT_SRC = ("'self'", "fonts.gstatic.com")
 CSP_IMG_SRC = ("'self'", "data:")
 CSP_SCRIPT_SRC = ("'self'",)
 
-# Production Email Configuration (Resend)
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.resend.com')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'resend')
-EMAIL_HOST_PASSWORD = os.getenv('RESEND_API_KEY')
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+# Production Email Configuration (Resend HTTP API via Anymail configured in base.py)
+RESEND_API_KEY = os.getenv('RESEND_API_KEY')
 
-if not EMAIL_HOST_PASSWORD:
+if not RESEND_API_KEY:
     raise ImproperlyConfigured("RESEND_API_KEY environment variable is required for production email.")
 
 # Enforce verification in production by default

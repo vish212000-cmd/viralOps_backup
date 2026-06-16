@@ -19,6 +19,7 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     
     # Third-party
+    'anymail',
     'rest_framework',
     'corsheaders',
     'allauth',
@@ -209,24 +210,32 @@ else:
         },
     }
 
-# Email Configuration (SMTP with Console Fallback)
-EMAIL_HOST = os.getenv('EMAIL_HOST', '')
-try:
-    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
-except ValueError:
-    EMAIL_PORT = 587
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+# Email Configuration (Resend HTTP API with Console Fallback)
+from django.core.exceptions import ImproperlyConfigured
+
+RESEND_API_KEY = os.getenv('RESEND_API_KEY')
+if not RESEND_API_KEY and not os.getenv('DEBUG', 'False') == 'True':
+    # Allow fallback in extreme cases, but in prod it must be set.
+    pass
+
+# We enforce RESEND_API_KEY below if not using console.
+
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@vishnumadapakula.in')
 
 EMAIL_VERIFICATION_REQUIRED = os.getenv('EMAIL_VERIFICATION_REQUIRED', 'False') == 'True'
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory' if EMAIL_VERIFICATION_REQUIRED else 'optional'
 
-if EMAIL_HOST:
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))
+
+if RESEND_API_KEY:
+    EMAIL_BACKEND = 'anymail.backends.resend.EmailBackend'
+    ANYMAIL = {
+        "RESEND_API_KEY": RESEND_API_KEY,
+    }
 else:
+    if os.getenv('ENVIRONMENT') == 'production':
+        raise ImproperlyConfigured("RESEND_API_KEY environment variable is missing.")
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Celery Queue Routing and Dead Letter Queue Configuration
