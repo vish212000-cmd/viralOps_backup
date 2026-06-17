@@ -18,7 +18,8 @@ interface AuthContextType {
   orgs: Workspace[];
   currentOrg: Workspace | null;
   loading: boolean;
-  loginUser: (username: string, pass: string) => Promise<void>;
+  loginInitiate: (username: string, pass: string) => Promise<void>;
+  loginVerifyOTP: (username: string, otp: string) => Promise<void>;
   registerUser: (username: string, email: string, pass: string) => Promise<void>;
   logoutUser: () => void;
   selectOrg: (slug: string) => void;
@@ -74,25 +75,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loginUser = async (username: string, pass: string) => {
-    const res = await api.post('/api/auth/login/', { username, password: pass }) as { access: string; refresh: string };
-    api.setToken(res.access);
-    localStorage.setItem('refresh_token', res.refresh);
-    localStorage.setItem('username', username);
-    setUser({ username, email: '' });
-    await fetchWorkspaces();
+  const loginInitiate = async (username: string, pass: string) => {
+    await api.post('/api/auth/login/', { username, password: pass });
   };
 
-  const registerUser = async (username: string, email: string, pass: string) => {
-    const res = await api.post('/api/auth/register/', { username, email, password: pass }) as { access: string; refresh: string; user: UserProfile };
+  const loginVerifyOTP = async (username: string, otp: string) => {
+    const res = await api.post('/api/auth/login/verify/', { username, otp }) as { access: string; refresh: string; user: UserProfile };
     api.setToken(res.access);
     localStorage.setItem('refresh_token', res.refresh);
     localStorage.setItem('username', res.user.username);
     setUser(res.user);
-    setCurrentOrg(null);
-    api.setOrgSlug(null);
-    setOrgs([]);
-    setLoading(false);
+    await fetchWorkspaces();
+  };
+
+  const registerUser = async (username: string, email: string, pass: string) => {
+    await api.post('/api/auth/register/', { username, email, password: pass });
   };
 
   const logoutUser = () => {
@@ -117,7 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     orgs,
     currentOrg,
     loading,
-    loginUser,
+    loginInitiate,
+    loginVerifyOTP,
     registerUser,
     logoutUser,
     selectOrg,

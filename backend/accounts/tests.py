@@ -47,7 +47,7 @@ class EmailAuthTestCase(TestCase):
         }
         login_res = self.client.post(self.login_url, login_payload, format='json')
         self.assertEqual(login_res.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertIn('verified', login_res.data['detail'])
+        self.assertIn('verify your email address', login_res.data['detail'].lower())
 
     def test_verify_email_endpoint(self):
         # Create unverified user
@@ -76,7 +76,24 @@ class EmailAuthTestCase(TestCase):
         }
         login_res = self.client.post(self.login_url, login_payload, format='json')
         self.assertEqual(login_res.status_code, status.HTTP_200_OK)
-        self.assertIn('access', login_res.data)
+        self.assertEqual(login_res.data['detail'], 'OTP sent to email.')
+        
+        # Get OTP from DB
+        from accounts.models import EmailOTP
+        otp_record = EmailOTP.objects.get(user=user, purpose='LOGIN')
+        # We can't know the raw OTP since it's hashed and random, but we can bypass it by saving a known hash
+        from django.contrib.auth.hashers import make_password
+        otp_record.otp_hash = make_password('123456')
+        otp_record.save()
+        
+        verify_payload = {
+            'username': 'verify_token_user',
+            'otp': '123456'
+        }
+        verify_url = reverse('auth-login-verify')
+        verify_res = self.client.post(verify_url, verify_payload, format='json')
+        self.assertEqual(verify_res.status_code, status.HTTP_200_OK)
+        self.assertIn('access', verify_res.data)
 
     def test_resend_verification_email(self):
         user = User.objects.create_user(
@@ -106,21 +123,25 @@ class EmailAuthTestCase(TestCase):
         
         # Extract token from mail
         sent_email = mail.outbox[0]
-        self.assertIn("Reset Your Password", sent_email.subject)
+        self.assertIn("Password Reset Code", sent_email.subject)
         
-        # Generate reset token
-        token = signing.dumps({'user_id': user.id}, salt='password-reset')
+        # Get OTP from DB
+        from accounts.models import EmailOTP
+        from django.contrib.auth.hashers import make_password
+        otp_record = EmailOTP.objects.get(user=user, purpose='PASSWORD_RESET')
+        otp_record.otp_hash = make_password('123456')
+        otp_record.save()
         
         # Confirm password reset
         confirm_payload = {
-            'token': token,
+            'email': 'reset@viralops.com',
+            'otp': '123456',
             'password': 'NewPassword123!'
         }
         confirm_res = self.client.post(self.reset_confirm_url, confirm_payload, format='json')
         self.assertEqual(confirm_res.status_code, status.HTTP_200_OK)
         
-
-        
+        # Check login
         login_payload = {
             'username': 'reset_user',
             'password': 'NewPassword123!'

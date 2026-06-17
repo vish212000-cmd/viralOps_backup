@@ -11,3 +11,19 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+
+class EmailOTP(models.Model):
+    PURPOSE_CHOICES = [
+        ('LOGIN', 'Login'),
+        ('PASSWORD_RESET', 'Password Reset'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='otps')
+    otp_hash = models.CharField(max_length=128)
+    purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    attempts = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.email} - {self.purpose} - {'Used' if self.is_used else 'Active'}"

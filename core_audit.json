@@ -1,0 +1,26 @@
+{
+  "auth": {
+    "Clear Inbox": {
+      "status": "PASS",
+      "details": null
+    },
+    "Signup": {
+      "status": "PASS",
+      "details": null
+    },
+    "Read Verification Email": {
+      "status": "FAIL",
+      "details": "No emails arrived"
+    },
+    "Login": {
+      "status": "FAIL",
+      "details": "{\"detail\":\"Email address is not verified. Please verify your email before logging in.\"}"
+    }
+  },
+  "workspaces": {},
+  "projects": {},
+  "ingestion": {},
+  "ai_generation": {},
+  "billing": {},
+  "cleanup": {}
+}

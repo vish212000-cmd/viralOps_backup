@@ -17,3 +17,19 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             password=validated_data['password']
         )
         return user
+
+class LoginInitiateSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+
+class LoginVerifyOTPSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    otp = serializers.CharField()
+
+class PasswordResetRequestOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+class PasswordResetConfirmOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField()
+    password = serializers.CharField(write_only=True)

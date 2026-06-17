@@ -1,0 +1,37 @@
+{
+  "infrastructure": {
+    "Backend /healthz/": {
+      "status": "PASS",
+      "details": {
+        "status": "UP"
+      }
+    },
+    "Frontend URL": {
+      "status": "PASS",
+      "details": "Loaded HTML (798 bytes)"
+    },
+    "SMTP Health": {
+      "status": "PASS",
+      "details": {
+        "status": "healthy",
+        "message": "SMTP connection successful"
+      }
+    }
+  },
+  "security": {
+    "CORS Allowed Origin": {
+      "status": "FAIL",
+      "details": "Expected https://viral-ops-backup-aexx.vercel.app, got None"
+    }
+  },
+  "performance": {
+    "Backend /healthz/ Response Time": {
+      "status": "WARN",
+      "details": "45.94s"
+    },
+    "Frontend Root Response Time": {
+      "status": "PASS",
+      "details": "0.62s"
+    }
+  }
+}
