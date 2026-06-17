@@ -9,9 +9,16 @@ from rest_framework import status, views, permissions
 from rest_framework.response import Response
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .serializers import UserRegisterSerializer
+from .serializers import (
+    UserRegisterSerializer, LoginInitiateSerializer, LoginVerifyOTPSerializer,
+    PasswordResetRequestOTPSerializer, PasswordResetConfirmOTPSerializer
+)
+import random
+from django.utils import timezone
+from datetime import timedelta
+from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth import authenticate
+from .models import EmailOTP
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -37,24 +44,38 @@ def send_verification_email(user):
         fail_silently=False
     )
 
-def send_password_reset_email(user):
-    token = signing.dumps({'user_id': user.id}, salt='password-reset')
-    frontend_url = os.getenv('FRONTEND_URL')
-    if not frontend_url:
-        from django.core.exceptions import ImproperlyConfigured
-        raise ImproperlyConfigured("FRONTEND_URL environment variable is not set.")
-    reset_url = f"{frontend_url.rstrip('/')}/reset-password?token={token}"
+def generate_otp_for_user(user, purpose):
+    now = timezone.now()
+    fifteen_mins_ago = now - timedelta(minutes=15)
+    recent_otps = EmailOTP.objects.filter(user=user, created_at__gte=fifteen_mins_ago).count()
+    if recent_otps >= 3:
+        raise Exception("Too many OTP requests. Please wait 15 minutes.")
     
-    context = {'user': user, 'reset_url': reset_url}
-    html_content = render_to_string('accounts/emails/password_reset_email.html', context)
-    text_content = render_to_string('accounts/emails/password_reset_email.txt', context)
+    raw_otp = f"{random.randint(0, 999999):06d}"
+    otp_hash = make_password(raw_otp)
+    expires_at = now + timedelta(minutes=10)
+    
+    EmailOTP.objects.create(
+        user=user,
+        otp_hash=otp_hash,
+        purpose=purpose,
+        expires_at=expires_at
+    )
+    return raw_otp
+
+def send_otp_email(user, raw_otp, purpose):
+    if purpose == 'LOGIN':
+        subject = "Your Login Verification Code - ViralOps"
+        text_content = f"Your verification code is: {raw_otp}\nIt expires in 10 minutes."
+    else:
+        subject = "Password Reset Code - ViralOps"
+        text_content = f"Your password reset code is: {raw_otp}\nIt expires in 10 minutes."
     
     send_mail(
-        subject="Reset Your Password - ViralOps",
+        subject=subject,
         message=text_content,
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
-        html_message=html_content,
         fail_silently=False
     )
 
@@ -96,8 +117,71 @@ class UserRegisterView(views.APIView):
             except Exception as e:
                 logger.error(f"Failed to send verification email to {user.email}: {str(e)}")
             
-            # Note: We still return tokens on register for immediate sandbox onboarding convenience,
-            # but any future password logins will enforce the verification gate.
+            return Response({
+                'user': {
+                    'username': user.username,
+                    'email': user.email,
+                },
+                'message': 'Registration successful. Please verify your email to log in.'
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class LoginInitiateView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = LoginInitiateSerializer(data=request.data)
+        if serializer.is_valid():
+            username = serializer.validated_data['username']
+            password = serializer.validated_data['password']
+            user = authenticate(username=username, password=password)
+            if not user:
+                return Response({'detail': 'Invalid username or password.'}, status=status.HTTP_401_UNAUTHORIZED)
+            
+            if getattr(settings, 'EMAIL_VERIFICATION_REQUIRED', False) and not getattr(user, 'is_email_verified', True):
+                return Response({'detail': 'Please verify your email address before logging in.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+            try:
+                raw_otp = generate_otp_for_user(user, 'LOGIN')
+                send_otp_email(user, raw_otp, 'LOGIN')
+                return Response({'detail': 'OTP sent to email.', 'email': user.email}, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({'detail': str(e)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class LoginVerifyOTPView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = LoginVerifyOTPSerializer(data=request.data)
+        if serializer.is_valid():
+            username = serializer.validated_data['username']
+            raw_otp = serializer.validated_data['otp']
+            try:
+                user = User.objects.get(username=username)
+            except User.DoesNotExist:
+                return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+            
+            now = timezone.now()
+            otp_record = EmailOTP.objects.filter(
+                user=user, purpose='LOGIN', is_used=False, expires_at__gt=now
+            ).order_by('-created_at').first()
+
+            if not otp_record:
+                return Response({'detail': 'No active OTP found or OTP has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if otp_record.attempts >= 5:
+                return Response({'detail': 'Maximum verification attempts exceeded. Please request a new OTP.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            otp_record.attempts += 1
+            otp_record.save()
+
+            if not check_password(raw_otp, otp_record.otp_hash):
+                return Response({'detail': 'Invalid OTP.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            otp_record.is_used = True
+            otp_record.save()
+
             refresh = RefreshToken.for_user(user)
             return Response({
                 'user': {
@@ -106,40 +190,8 @@ class UserRegisterView(views.APIView):
                 },
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
-            }, status=status.HTTP_201_CREATED)
+            }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-from rest_framework import serializers
-
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    def validate(self, attrs):
-        data = super().validate(attrs)
-        
-        # Enforce email verification gate if not bypassed
-        if not self.user.is_email_verified and os.getenv('EMAIL_VERIFICATION_REQUIRED', 'True') == 'True':
-            raise AuthenticationFailed(
-                detail='Email address is not verified. Please verify your email before logging in.',
-                code='email_not_verified'
-            )
-
-        # Enforce MFA TOTP Check if Enabled
-        if self.user.is_mfa_enabled:
-            mfa_token = self.context['request'].data.get('mfa_token')
-            if not mfa_token:
-                raise serializers.ValidationError({
-                    'mfa_required': True,
-                    'detail': 'Multi-Factor Authentication code is required.'
-                })
-            
-            from accounts.totp import verify_totp_code
-            if not verify_totp_code(self.user.mfa_secret, mfa_token):
-                raise serializers.ValidationError({
-                    'detail': 'Invalid Multi-Factor Authentication code.'
-                })
-        return data
-
-class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = CustomTokenObtainPairSerializer
 
 class VerifyEmailView(views.APIView):
     permission_classes = [permissions.AllowAny]
@@ -189,42 +241,61 @@ class PasswordResetRequestView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        email = request.data.get('email')
-        if not email:
-            return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-            user = User.objects.get(email=email)
-            send_password_reset_email(user)
-        except User.DoesNotExist:
-            pass # Mask user existence
-        except Exception as e:
-            logger.error(f"Error requesting password reset: {str(e)}")
-            return Response({'error': 'Failed to process password reset request.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-        return Response({'message': 'If an account exists with this email, a reset link has been sent.'}, status=status.HTTP_200_OK)
+        serializer = PasswordResetRequestOTPSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            try:
+                user = User.objects.get(email=email)
+                raw_otp = generate_otp_for_user(user, 'PASSWORD_RESET')
+                send_otp_email(user, raw_otp, 'PASSWORD_RESET')
+            except User.DoesNotExist:
+                pass # Mask user existence
+            except Exception as e:
+                logger.error(f"Error requesting password reset: {str(e)}")
+                return Response({'error': str(e)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+                
+            return Response({'message': 'If an account exists with this email, an OTP has been sent.'}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class PasswordResetConfirmView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        token = request.data.get('token')
-        new_password = request.data.get('password')
-        if not token or not new_password:
-            return Response({'error': 'Token and password are required.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-            # 1 hour expiry
-            data = signing.loads(token, salt='password-reset', max_age=3600)
-            user_id = data['user_id']
-            user = User.objects.get(id=user_id)
+        serializer = PasswordResetConfirmOTPSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            raw_otp = serializer.validated_data['otp']
+            new_password = serializer.validated_data['password']
+            
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                return Response({'error': 'Invalid request.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            now = timezone.now()
+            otp_record = EmailOTP.objects.filter(
+                user=user, purpose='PASSWORD_RESET', is_used=False, expires_at__gt=now
+            ).order_by('-created_at').first()
+
+            if not otp_record:
+                return Response({'error': 'No active OTP found or OTP has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if otp_record.attempts >= 5:
+                return Response({'error': 'Maximum verification attempts exceeded. Please request a new OTP.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            otp_record.attempts += 1
+            otp_record.save()
+
+            if not check_password(raw_otp, otp_record.otp_hash):
+                return Response({'error': 'Invalid OTP.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            otp_record.is_used = True
+            otp_record.save()
+
             user.set_password(new_password)
             user.save()
             return Response({'message': 'Password has been reset successfully.'}, status=status.HTTP_200_OK)
-        except signing.SignatureExpired:
-            return Response({'error': 'Password reset token has expired.'}, status=status.HTTP_400_BAD_REQUEST)
-        except (signing.BadSignature, User.DoesNotExist):
-            return Response({'error': 'Invalid password reset token.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class EnableMFAView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]

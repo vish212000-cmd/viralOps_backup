@@ -25,8 +25,8 @@ export default function Signup() {
 
     try {
       await registerUser(username, email, password);
-      showToast('Account created successfully!', 'success');
-      navigate('/dashboard');
+      showToast('Account created! Please check your email to verify your account before logging in.', 'success');
+      navigate('/login');
     } catch (err: any) {
       console.error(err);
       const errors = err?.data;
