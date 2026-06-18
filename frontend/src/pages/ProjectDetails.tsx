@@ -318,19 +318,21 @@ export default function ProjectDetails() {
   };
 
   const checkProjectStatus = async () => {
-    if (!project || project.status === 'COMPLETED' || !projectId) return;
+    if (!project || project.status === 'COMPLETED' || project.status === 'PARTIAL_SUCCESS' || !projectId) return;
     const activeSource = sources[0];
     if (activeSource && activeSource.status === 'FAILED') return;
     try {
       const proj = await api.get(`/api/orgs/${orgSlug}/projects/${projectId}/`) as Project;
       if (proj.status !== project.status) {
         setProject(proj);
-        if (proj.status === 'COMPLETED') {
+        if (proj.status === 'COMPLETED' || proj.status === 'PARTIAL_SUCCESS') {
           const srcList = await api.get(`/api/orgs/${orgSlug}/projects/${projectId}/sources/`) as SourceInput[];
           setSources(srcList);
           const assetList = await api.get(`/api/orgs/${orgSlug}/projects/${projectId}/assets/`) as GeneratedAsset[];
           setAssets(assetList);
-          showToast('Ingestion pipeline completed successfully!', 'success');
+          if (proj.status === 'COMPLETED') {
+            showToast('Ingestion pipeline completed successfully!', 'success');
+          }
         }
       }
     } catch (err) {
@@ -512,7 +514,7 @@ export default function ProjectDetails() {
             <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', marginTop: '0.25rem' }}>{project.description || 'Repurposing workspace for ingested content.'}</p>
           </div>
           
-          {project.status === 'COMPLETED' && (
+          {(project.status === 'COMPLETED' || project.status === 'PARTIAL_SUCCESS') && (
             <div style={{ display: 'flex', gap: '1rem' }}>
               <Button onClick={() => navigate(`/projects/${projectId}/moments`)}>
                 <Sparkles size={16} /> Open Moments Workspace
@@ -524,7 +526,28 @@ export default function ProjectDetails() {
           )}
         </header>
 
-        {project.status !== 'COMPLETED' && (!activeSource || activeSource.status !== 'FAILED') ? (
+        {project.status === 'PARTIAL_SUCCESS' && (
+          <div style={{ 
+            background: 'hsl(var(--warning) / 0.15)', 
+            border: '1px solid hsl(var(--warning) / 0.5)', 
+            borderRadius: '0.5rem', 
+            padding: '1rem 1.5rem', 
+            marginBottom: '2rem', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '1rem' 
+          }}>
+            <AlertTriangle size={24} color="hsl(var(--warning))" style={{ flexShrink: 0 }} />
+            <div>
+              <h4 style={{ color: 'hsl(var(--warning))', marginBottom: '0.25rem', fontWeight: 600 }}>AI Enhancement Delayed</h4>
+              <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.9rem' }}>
+                Core transcript processing completed successfully, but AI asset generation is temporarily delayed due to provider quota limits. We will automatically retry in the background.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {project.status !== 'COMPLETED' && project.status !== 'PARTIAL_SUCCESS' && (!activeSource || activeSource.status !== 'FAILED') ? (
           <Card style={{ padding: '4rem 2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyItems: 'center' }}>
             <Loader2 size={48} className="loading-spinner" style={{ marginBottom: '1.5rem' }} />
             <h3 style={{ fontSize: '1.3rem', marginBottom: '0.7rem' }}>Content Ingestion Pipeline Active</h3>

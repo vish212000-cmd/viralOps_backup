@@ -21,6 +21,15 @@ except Exception as e:
     logger.warning(f"Could not connect to Redis for circuit breaker: {str(e)}")
     redis_client = None
 
+def is_ai_quota_error(e):
+    err_str = str(e).lower()
+    return (
+        "429" in err_str or
+        "quota" in err_str or
+        "rate limit" in err_str or
+        "unavailable" in err_str or
+        type(e).__name__ in ["ResourceExhausted", "TooManyRequests", "ServiceUnavailable"]
+    )
 
 def _save_assets(project, assets_data, moment=None):
     """Persist generated assets to the database."""
@@ -130,9 +139,15 @@ def process_source_input(self, source_input_id):
 
     source_input.status = 'PROCESSING'
     source_input.save()
+    
+    project.status = 'PROCESSING'
+    project.save()
+
+    current_step = 'Initialization'
 
     try:
         # ── Step 1: Transcription ─────────────────────────────────────────────
+        current_step = 'Transcription'
         logger.info(f"[Task] Step 1/5 — Ingesting {source_input.type} (ID: {source_input.id})")
 
         from projects.transcription.services import transcribe_source_input as _transcribe
@@ -168,6 +183,7 @@ def process_source_input(self, source_input_id):
         )
 
         # ── Step 2: YouTube Transcript Gate ───────────────────────────────────
+        current_step = 'YouTube Transcript Gate'
         transcript_diagnostics = None
         if source_input.type == 'YOUTUBE':
             source_input.refresh_from_db()
@@ -190,15 +206,19 @@ def process_source_input(self, source_input_id):
             )
 
         # ── Step 3: Content Intelligence (non-fatal) ──────────────────────────
+        current_step = 'Content Intelligence'
         logger.info(f"[Task] Step 3/5 — Content intelligence")
         try:
             from projects.services.content_intelligence_service import run_content_intelligence
             run_content_intelligence(project, source_input, normalized_text)
             logger.info(f"[Task] Step 3/5 ✓ — Content intelligence complete")
         except Exception as intel_err:
+            if is_ai_quota_error(intel_err):
+                raise intel_err
             logger.warning(f"[Task] Step 3/5 ⚠ — Content intelligence failed (non-fatal): {intel_err}")
 
         # ── Step 4: Moment Detection + Scoring (non-fatal) ───────────────────
+        current_step = 'Moment Detection'
         logger.info(f"[Task] Step 4/5 — Moment detection + scoring")
         try:
             from projects.services.moment_detection_service import detect_moments
@@ -209,9 +229,12 @@ def process_source_input(self, source_input_id):
             moment_count = Moment.objects.filter(project=project).count()
             logger.info(f"[Task] Step 4/5 ✓ — {moment_count} moments detected and scored")
         except Exception as moment_err:
+            if is_ai_quota_error(moment_err):
+                raise moment_err
             logger.warning(f"[Task] Step 4/5 ⚠ — Moment detection failed (non-fatal): {moment_err}")
 
         # ── Step 5: AI Asset Generation ───────────────────────────────────────
+        current_step = 'Asset Generation'
         logger.info(f"[Task] Step 5/5 — Generating social assets via Gemini")
         org = project.organization
         memories = {mem.key: mem.value for mem in MemoryRecord.objects.filter(organization=org)}
@@ -267,13 +290,65 @@ def process_source_input(self, source_input_id):
         logger.info(f"[Task] ✓ All 5 steps completed for SourceInput {source_input.id}")
 
     except Exception as e:
+        if is_ai_quota_error(e) and current_step in ['Content Intelligence', 'Moment Detection', 'Asset Generation']:
+            logger.warning(f"[Task] Quota exceeded during AI phase. Gracefully degrading. SourceInput: {source_input_id}")
+            project.status = 'PARTIAL_SUCCESS'
+            project.save(update_fields=['status'])
+            
+            source_input.status = 'PARTIAL_SUCCESS'
+            source_input.error_message = "AI enhancement temporarily delayed. Core transcript processing completed successfully."
+            source_input.save(update_fields=['status', 'error_message'])
+            
+            job.status = 'PARTIAL_SUCCESS'
+            job.error_message = "AI enhancement temporarily delayed."
+            job.save(update_fields=['status', 'error_message'])
+            
+            # Enqueue background retry
+            retry_ai_generation.apply_async(args=[source_input.id], countdown=60)
+            return
+
         logger.exception(f"[Task] Pipeline failed for SourceInput {source_input_id}: {e}")
+
+        
+        if is_ai_quota_error(e):
+            job.retry_count += 1
+            job.last_retry_at = timezone.now()
+            
+            if job.retry_count <= 3:
+                delays = {1: 60, 2: 300, 3: 900}
+                delay = delays.get(job.retry_count, 900)
+                
+                project.status = 'RETRYING'
+                project.save(update_fields=['status'])
+                
+                source_input.status = 'RETRYING'
+                source_input.error_message = "AI generation temporarily delayed due to provider quota. Retrying automatically."
+                source_input.save(update_fields=['status', 'error_message'])
+                
+                job.status = 'RETRYING'
+                job.error_type = type(e).__name__
+                job.error_message = "AI generation temporarily delayed due to provider quota. Retrying automatically."
+                job.error_log = str(e)
+                job.failing_step = current_step
+                job.save(update_fields=['status', 'error_log', 'error_type', 'error_message', 'failing_step', 'retry_count', 'last_retry_at'])
+                
+                logger.info(f"[Task] Quota exceeded for SourceInput {source_input_id}. Retry {job.retry_count}/3 in {delay}s.")
+                
+                raise self.retry(exc=e, countdown=delay, max_retries=3)
+
+        project.status = 'FAILED'
+        project.save(update_fields=['status'])
+
         source_input.status = 'FAILED'
         source_input.error_message = str(e)
-        source_input.save()
+        source_input.save(update_fields=['status', 'error_message'])
+
         job.status = 'FAILED'
+        job.error_type = type(e).__name__
+        job.error_message = str(e)
         job.error_log = str(e)
-        job.save()
+        job.failing_step = current_step
+        job.save(update_fields=['status', 'error_log', 'error_type', 'error_message', 'failing_step', 'retry_count'])
 
         if redis_client:
             try:
@@ -288,6 +363,7 @@ def process_source_input(self, source_input_id):
             except Exception as cb_err:
                 logger.warning(f"Circuit breaker update failed: {str(cb_err)}")
 
+        # For normal (non-quota) errors, preserve original behaviour
         raise self.retry(exc=e)
 
 
@@ -318,3 +394,93 @@ def regenerate_single_asset(asset_id):
             GeneratedAssetVersion.objects.create(asset=asset, content=asset.content, edited_by=None)
     except Exception as e:
         logger.error(f"Asset regeneration failed: {str(e)}")
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=300)
+def retry_ai_generation(self, source_input_id):
+    """Background task to retry AI asset generation after PARTIAL_SUCCESS degradation."""
+    try:
+        source_input = SourceInput.objects.get(id=source_input_id)
+        project = source_input.project
+        transcript_record = source_input.transcript
+        normalized_text = transcript_record.normalized_text
+        
+        # We assume Steps 1 and 2 are done. We just run 3, 4, and 5.
+        
+        # Step 3: Content Intelligence
+        try:
+            from projects.services.content_intelligence_service import run_content_intelligence
+            run_content_intelligence(project, source_input, normalized_text)
+        except Exception as intel_err:
+            if is_ai_quota_error(intel_err):
+                raise intel_err
+            logger.warning(f"[Retry Task] Content intelligence failed: {intel_err}")
+
+        # Step 4: Moment Detection
+        try:
+            from projects.services.moment_detection_service import detect_moments
+            from projects.services.moment_scoring_service import rescore_moments
+            detect_moments(project, source_input, transcript_record)
+            rescore_moments(project)
+        except Exception as moment_err:
+            if is_ai_quota_error(moment_err):
+                raise moment_err
+            logger.warning(f"[Retry Task] Moment detection failed: {moment_err}")
+
+        # Step 5: Asset Generation
+        org = project.organization
+        memories = {mem.key: mem.value for mem in MemoryRecord.objects.filter(organization=org)}
+        transcript_diagnostics = {
+            "status": source_input.transcript_validation_status or "PASS",
+            "length": source_input.transcript_length or 0,
+        }
+        
+        top_moments = list(Moment.objects.filter(project=project).order_by('-score')[:5])
+        if not top_moments:
+            assets_data = generate_social_assets(
+                title=source_input.title or source_input.file_name or "Content",
+                source_type=source_input.type,
+                content_text=normalized_text,
+                memory_settings=memories,
+                transcript_diagnostics=transcript_diagnostics,
+            )
+            _save_assets(project, assets_data, moment=None)
+        else:
+            for moment in top_moments:
+                content_text = moment.excerpt if moment.excerpt else normalized_text[:3000]
+                assets_data = generate_social_assets(
+                    title=f"{source_input.title or source_input.file_name or 'Content'} — {moment.title}",
+                    source_type=source_input.type,
+                    content_text=content_text,
+                    memory_settings=memories,
+                    transcript_diagnostics=transcript_diagnostics,
+                )
+                _save_assets(project, assets_data, moment=moment)
+
+        # Mark Success
+        project.status = 'COMPLETED'
+        project.save()
+        source_input.status = 'COMPLETED'
+        source_input.error_message = ''
+        source_input.save()
+        try:
+            job = ProcessingJob.objects.get(source_input=source_input)
+            job.status = 'COMPLETED'
+            job.error_message = ''
+            job.save()
+        except ProcessingJob.DoesNotExist:
+            pass
+
+    except Exception as e:
+        if is_ai_quota_error(e):
+            logger.warning(f"[Retry Task] Quota exceeded on retry {self.request.retries}/3.")
+            delays = {1: 300, 2: 900, 3: 3600}
+            delay = delays.get(self.request.retries + 1, 3600)
+            raise self.retry(exc=e, countdown=delay, max_retries=3)
+        else:
+            logger.exception(f"[Retry Task] Hard failure: {e}")
+            project.status = 'FAILED'
+            project.save()
+            source_input.status = 'FAILED'
+            source_input.error_message = str(e)
+            source_input.save()
+

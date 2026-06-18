@@ -17,6 +17,8 @@ import json
 import re
 import os
 import tempfile
+import requests
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from django.utils import timezone
 
 from projects.services.transcript_validator import (
@@ -57,6 +59,19 @@ def _join_transcript_pieces(pieces: list[str]) -> str:
 # Layer 1: youtube-transcript-api
 # ---------------------------------------------------------------------------
 
+def _retry_if_transient(exception):
+    # Retry on specific transient errors
+    is_transient = isinstance(exception, (requests.RequestException, subprocess.TimeoutExpired))
+    if not is_transient and "50" in str(exception): # Catch 50x errors
+        return True
+    return is_transient
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type(Exception), # We will retry any exception for robust failover
+    reraise=True
+)
 def _retrieve_via_transcript_api(video_id: str) -> tuple[str, str]:
     """
     Attempt retrieval via youtube-transcript-api.
@@ -107,6 +122,11 @@ def _retrieve_via_transcript_api(video_id: str) -> tuple[str, str]:
 # Layer 2 & 3: yt-dlp subtitle extraction
 # ---------------------------------------------------------------------------
 
+@retry(
+    stop=stop_after_attempt(2),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    reraise=True
+)
 def _retrieve_via_ytdlp(url: str) -> tuple[str, str]:
     """
     Attempt retrieval via yt-dlp (manual subtitles first, then auto-generated).
@@ -212,11 +232,83 @@ def _retrieve_from_manual_input(source_input) -> tuple[str, str]:
     """
     text = (source_input.text_content or "").strip()
     if text and len(text) > 1000:
-        logger.info(f"[YT Layer 4] Using user-supplied manual transcript ({len(text)} chars)")
+        logger.info(f"[YT Layer 6] Using user-supplied manual transcript ({len(text)} chars)")
         return text, "manual-user-supplied"
     raise Exception(
         f"No usable manual transcript supplied (length={len(text)})"
     )
+
+# ---------------------------------------------------------------------------
+# Layer 4 & 5: Audio extraction & Whisper / AssemblyAI fallback
+# ---------------------------------------------------------------------------
+
+@retry(
+    stop=stop_after_attempt(2),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    reraise=True
+)
+def _retrieve_via_audio_transcription(url: str) -> tuple[str, str]:
+    """
+    Attempt retrieval by downloading audio via yt-dlp and transcribing it using Whisper then AssemblyAI.
+    Uses tempfile.TemporaryDirectory to ensure automatic cleanup of audio files upon completion or exception.
+    """
+    from projects.transcription.services import _transcribe_whisper, _transcribe_assemblyai
+    logger.info(f"[YT Layer 4/5] Attempting audio extraction & transcription for {url}")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cmd = [
+            sys.executable, "-m", "yt_dlp",
+            "--extract-audio",
+            "--audio-format", "mp3",
+            "--output", os.path.join(tmpdir, "%(id)s.%(ext)s"),
+            url,
+            "--no-playlist",
+            "--quiet",
+        ]
+        
+        try:
+            logger.info(f"[YT Layer 4/5] Downloading audio with yt-dlp")
+            subprocess.run(cmd, capture_output=True, text=True, timeout=300, check=True)
+            
+            # Find the downloaded audio file
+            audio_fpath = None
+            for fname in os.listdir(tmpdir):
+                if fname.endswith(".mp3"):
+                    audio_fpath = os.path.join(tmpdir, fname)
+                    break
+            
+            if not audio_fpath:
+                raise Exception("yt-dlp succeeded but no mp3 file was found.")
+                
+            last_err = None
+            # Try Whisper (Layer 4)
+            try:
+                logger.info(f"[YT Layer 4] Attempting Whisper transcription for {audio_fpath}")
+                raw_text, normalized_text, segments, duration_seconds = _transcribe_whisper(audio_fpath)
+                if raw_text and len(raw_text) > 100:
+                    logger.info(f"[YT Layer 4] SUCCESS — Whisper transcription complete")
+                    return raw_text, "yt-dlp-audio/whisper"
+            except Exception as e:
+                last_err = e
+                logger.warning(f"[YT Layer 4] Whisper failed: {e}")
+                
+            # Try AssemblyAI (Layer 5)
+            try:
+                logger.info(f"[YT Layer 5] Attempting AssemblyAI transcription for {audio_fpath}")
+                raw_text, normalized_text, segments, duration_seconds = _transcribe_assemblyai(audio_fpath)
+                if raw_text and len(raw_text) > 100:
+                    logger.info(f"[YT Layer 5] SUCCESS — AssemblyAI transcription complete")
+                    return raw_text, "yt-dlp-audio/assemblyai"
+            except Exception as e:
+                last_err = e
+                logger.warning(f"[YT Layer 5] AssemblyAI failed: {e}")
+                
+            raise Exception(f"Both Whisper and AssemblyAI failed. Last error: {last_err}")
+                
+        except subprocess.CalledProcessError as e:
+            raise Exception(f"yt-dlp audio extraction failed: {e.stderr}")
+        except subprocess.TimeoutExpired:
+            raise Exception("yt-dlp audio extraction timed out.")
 
 
 # ---------------------------------------------------------------------------
@@ -275,13 +367,21 @@ def ingest_youtube_source(source_input) -> dict:
             last_error = e
             logger.warning(f"[YouTubeIngestion] Layer 2/3 failed: {e}")
 
-    # --- Layer 4 ---
+    # --- Layer 4 & 5: Audio Fallback ---
+    if not transcript_text:
+        try:
+            transcript_text, retrieval_method = _retrieve_via_audio_transcription(url)
+        except Exception as e:
+            last_error = e
+            logger.warning(f"[YouTubeIngestion] Layer 4/5 audio fallback failed: {e}")
+
+    # --- Layer 6: Manual ---
     if not transcript_text:
         try:
             transcript_text, retrieval_method = _retrieve_from_manual_input(source_input)
         except Exception as e:
             last_error = e
-            logger.warning(f"[YouTubeIngestion] Layer 4 failed: {e}")
+            logger.warning(f"[YouTubeIngestion] Layer 6 failed: {e}")
 
     # --- ALL LAYERS FAILED ---
     if not transcript_text:

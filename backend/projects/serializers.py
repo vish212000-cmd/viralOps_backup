@@ -30,10 +30,36 @@ class MembershipSerializer(serializers.ModelSerializer):
         fields = ('id', 'user', 'organization', 'role', 'joined_at')
 
 class ProjectSerializer(serializers.ModelSerializer):
+    error_message = serializers.SerializerMethodField()
+    error_type = serializers.SerializerMethodField()
+    failing_step = serializers.SerializerMethodField()
+    retry_count = serializers.SerializerMethodField()
+    last_retry_at = serializers.SerializerMethodField()
+
     class Meta:
         model = Project
-        fields = ('id', 'organization', 'name', 'description', 'status', 'created_at', 'updated_at')
+        fields = ('id', 'organization', 'name', 'description', 'status', 'error_message', 'error_type', 'failing_step', 'retry_count', 'last_retry_at', 'created_at', 'updated_at')
         read_only_fields = ('organization',)
+
+    def get_error_message(self, obj):
+        latest_job = obj.jobs.order_by('-created_at').first()
+        return latest_job.error_message if latest_job else None
+
+    def get_error_type(self, obj):
+        latest_job = obj.jobs.order_by('-created_at').first()
+        return latest_job.error_type if latest_job else None
+
+    def get_failing_step(self, obj):
+        latest_job = obj.jobs.order_by('-created_at').first()
+        return latest_job.failing_step if latest_job else None
+
+    def get_retry_count(self, obj):
+        latest_job = obj.jobs.order_by('-created_at').first()
+        return latest_job.retry_count if latest_job else 0
+
+    def get_last_retry_at(self, obj):
+        latest_job = obj.jobs.order_by('-created_at').first()
+        return latest_job.last_retry_at if latest_job else None
 
     def validate_name(self, value):
         if len(value.strip()) < 3:
@@ -117,7 +143,7 @@ class TranscriptRecordSerializer(serializers.ModelSerializer):
 class ProcessingJobSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProcessingJob
-        fields = ('id', 'task_id', 'source_input', 'project', 'status', 'error_log', 'created_at', 'updated_at')
+        fields = ('id', 'task_id', 'source_input', 'project', 'status', 'error_log', 'error_type', 'error_message', 'failing_step', 'retry_count', 'last_retry_at', 'created_at', 'updated_at')
 
 class GeneratedAssetVersionSerializer(serializers.ModelSerializer):
     edited_by_username = serializers.CharField(source='edited_by.username', read_only=True)

@@ -86,6 +86,29 @@ class ProjectViewSet(TenantScopedQuerysetMixin, viewsets.ModelViewSet):
         response['Content-Disposition'] = f'attachment; filename="viralops_export_{project.id}.txt"'
         return response
 
+    @decorators.action(detail=True, methods=['post'])
+    def retry(self, request, org_slug=None, pk=None):
+        project = self.get_object()
+        
+        # Reset Project status
+        project.status = 'PENDING'
+        project.save(update_fields=['status'])
+        
+        # Find latest SourceInput
+        source = project.sources.order_by('-created_at').first()
+        if not source:
+            return Response({'error': 'No source input found to retry'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Reset SourceInput status
+        source.status = 'PENDING'
+        source.error_message = ''
+        source.save(update_fields=['status', 'error_message'])
+        
+        # Trigger Celery Ingestion Job
+        process_source_input.delay(source.id)
+        
+        return Response({'status': 'Project scheduled for retry'})
+
 class SourceInputViewSet(TenantScopedQuerysetMixin, viewsets.ModelViewSet):
     queryset = SourceInput.objects.all().select_related('project', 'project__organization').order_by('-created_at')
     serializer_class = SourceInputSerializer

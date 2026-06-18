@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { Input } from '../components/design/Input';
 import { Button } from '../components/design/Button';
 import { Card } from '../components/design/Card';
-import { Sparkles, ShieldAlert } from 'lucide-react';
+import { Sparkles, ShieldAlert, ArrowRight } from 'lucide-react';
 
 export default function Signup() {
   const [username, setUsername] = useState('');
@@ -47,7 +48,6 @@ export default function Signup() {
     const redirectUri = encodeURIComponent(`${window.location.origin}/auth/google/callback`);
     
     if (!clientId) {
-      // Offline fallback: navigate straight to callback with mock token
       navigate(`/auth/google/callback?code=mock_google_code`);
     } else {
       window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=profile%20email`;
@@ -55,70 +55,95 @@ export default function Signup() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'hsl(var(--bg-main))', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <Card glow style={{ width: '100%', maxWidth: '420px', padding: '2.5rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2.5rem' }}>
-          <div style={{ background: 'linear-gradient(135deg, hsl(var(--accent-primary)), hsl(var(--accent-secondary)))', width: '48px', height: '48px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
-            <Sparkles size={24} color="#fff" />
+    <div className="min-h-[100dvh] relative flex items-center justify-center p-4 overflow-hidden">
+      {/* Aurora Background Elements Removed for Performance */}
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-[420px] relative z-10"
+      >
+        <Card glow className="p-10">
+          <div className="flex flex-col items-center mb-10 text-center">
+            <motion.div 
+              className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center mb-6 shadow-lg shadow-accent-primary/20"
+            >
+              <Sparkles size={24} className="text-white" />
+            </motion.div>
+            
+            <h2 className="text-2xl font-display font-bold tracking-tight text-white mb-2">
+              Request Access
+            </h2>
+            <p className="text-sm text-text-muted">
+              Initialize your content intelligence framework.
+            </p>
           </div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, fontFamily: 'var(--font-display)' }}>Create Account</h2>
-          <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.9rem', marginTop: '0.25rem' }}>Start repurposing your content today</p>
-        </div>
 
-        {error && (
-          <div style={{ background: 'hsl(var(--danger) / 0.1)', border: '1px solid hsl(var(--danger) / 0.3)', padding: '0.75rem 1rem', borderRadius: '8px', color: 'hsl(var(--danger))', display: 'flex', gap: '0.5rem', alignItems: 'flex-start', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-            <ShieldAlert size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
-            <span style={{ wordBreak: 'break-word' }}>{error}</span>
+          <AnimatePresence>
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden mb-6"
+              >
+                <div className="bg-danger/10 border border-danger/30 p-3 rounded-xl text-danger flex gap-3 text-sm font-medium items-center">
+                  <ShieldAlert size={16} className="shrink-0" />
+                  <span className="break-words">{error}</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <form onSubmit={handleSignup} className="flex flex-col gap-5">
+            <Input 
+              label="Terminal Identity (Username)"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              placeholder="e.g. maverick"
+            />
+
+            <Input 
+              label="Secure Comm Link (Email)"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="you@domain.com"
+            />
+
+            <Input 
+              label="Passkey"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder="Minimum 8 characters"
+            />
+
+            <Button type="submit" loading={loading} className="w-full mt-2" icon={<ArrowRight size={16} />}>
+              Initialize Account
+            </Button>
+          </form>
+
+          <div className="flex items-center my-8 gap-4">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-xs uppercase tracking-widest text-text-dim font-bold">Or</span>
+            <div className="flex-1 h-px bg-white/10" />
           </div>
-        )}
 
-        <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <Input 
-            label="Username"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            placeholder="Pick a username"
-          />
-
-          <Input 
-            label="Email Address"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            placeholder="Enter your email"
-          />
-
-          <Input 
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            placeholder="Create secure password"
-          />
-
-          <Button type="submit" loading={loading} style={{ justifyContent: 'center', marginTop: '0.5rem' }}>
-            Sign Up
+          <Button type="button" variant="secondary" onClick={handleGoogleLogin} className="w-full">
+            <Sparkles size={16} /> Authenticate via Google
           </Button>
-        </form>
 
-        <div style={{ display: 'flex', alignItems: 'center', margin: '1.5rem 0', gap: '0.75rem' }}>
-          <div style={{ flex: 1, height: '1px', background: 'hsl(var(--border-muted))' }} />
-          <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-dim))', textTransform: 'uppercase' }}>or</span>
-          <div style={{ flex: 1, height: '1px', background: 'hsl(var(--border-muted))' }} />
-        </div>
-
-        <Button type="button" variant="secondary" onClick={handleGoogleLogin} style={{ width: '100%', justifyContent: 'center' }}>
-          <Sparkles size={16} /> Continue with Google
-        </Button>
-
-        <p style={{ color: 'hsl(var(--text-dim))', fontSize: '0.85rem', textAlign: 'center', marginTop: '2rem' }}>
-          Already have an account? <Link to="/login" style={{ color: 'hsl(var(--accent-primary))', textDecoration: 'none', fontWeight: 600 }}>Sign in</Link>
-        </p>
-      </Card>
+          <p className="text-sm text-text-muted text-center mt-8">
+            Already authorized? <Link to="/login" className="text-white hover:text-accent-cyan font-semibold transition-colors">Establish Connection</Link>
+          </p>
+        </Card>
+      </motion.div>
     </div>
   );
 }

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { Input } from '../components/design/Input';
 import { Button } from '../components/design/Button';
 import { Card } from '../components/design/Card';
-import { Sparkles, ShieldAlert, KeyRound } from 'lucide-react';
+import { Sparkles, ShieldAlert, KeyRound, ArrowRight } from 'lucide-react';
 
 export default function Login() {
   const [step, setStep] = useState<'CREDENTIALS' | 'OTP'>('CREDENTIALS');
@@ -90,126 +91,166 @@ export default function Login() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'hsl(var(--bg-main))', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <Card glow style={{ width: '100%', maxWidth: '420px', padding: '2.5rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2.5rem' }}>
-          <div style={{ background: 'linear-gradient(135deg, hsl(var(--accent-primary)), hsl(var(--accent-secondary)))', width: '48px', height: '48px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
-            {step === 'CREDENTIALS' ? <Sparkles size={24} color="#fff" /> : <KeyRound size={24} color="#fff" />}
-          </div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, fontFamily: 'var(--font-display)' }}>
-            {step === 'CREDENTIALS' ? 'Welcome Back' : 'Verify Login'}
-          </h2>
-          <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.9rem', marginTop: '0.25rem', textAlign: 'center' }}>
-            {step === 'CREDENTIALS' 
-              ? 'Sign in to manage your workspaces' 
-              : `We've sent a 6-digit code to your email. Enter it below.`}
-          </p>
-        </div>
+    <div className="min-h-[100dvh] relative flex items-center justify-center p-4 overflow-hidden">
+      {/* Aurora Background Elements Removed for Performance */}
 
-        {error && (
-          <div style={{ background: 'hsl(var(--danger) / 0.1)', border: '1px solid hsl(var(--danger) / 0.3)', padding: '0.75rem 1rem', borderRadius: '8px', color: 'hsl(var(--danger))', display: 'flex', gap: '0.5rem', alignItems: 'flex-start', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-            <ShieldAlert size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {step === 'CREDENTIALS' ? (
-          <>
-            <form onSubmit={handleCredentialsSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <Input 
-                label="Username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                placeholder="Enter your username"
-              />
-
-              <Input 
-                label="Password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-0.75rem' }}>
-                <Link to="/forgot-password" style={{ color: 'hsl(var(--accent-primary))', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 500 }}>
-                  Forgot password?
-                </Link>
-              </div>
-
-              <Button type="submit" loading={loading} style={{ justifyContent: 'center', marginTop: '0.5rem' }}>
-                Sign In
-              </Button>
-            </form>
-
-            <div style={{ display: 'flex', alignItems: 'center', margin: '1.5rem 0', gap: '0.75rem' }}>
-              <div style={{ flex: 1, height: '1px', background: 'hsl(var(--border-muted))' }} />
-              <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-dim))', textTransform: 'uppercase' }}>or</span>
-              <div style={{ flex: 1, height: '1px', background: 'hsl(var(--border-muted))' }} />
-            </div>
-
-            <Button type="button" variant="secondary" onClick={handleGoogleLogin} style={{ width: '100%', justifyContent: 'center' }}>
-              <Sparkles size={16} /> Continue with Google
-            </Button>
-          </>
-        ) : (
-          <form onSubmit={handleOTPSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <Input 
-              label="6-Digit Verification Code"
-              type="text"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              required
-              placeholder="000000"
-              maxLength={6}
-              style={{ textAlign: 'center', letterSpacing: '0.25em', fontSize: '1.25rem' }}
-            />
-
-            <Button type="submit" loading={loading} style={{ justifyContent: 'center', marginTop: '0.5rem' }}>
-              Verify & Sign In
-            </Button>
-
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.5rem' }}>
-              <button
-                type="button"
-                disabled={countdown > 0 || loading}
-                onClick={handleResendOTP}
-                style={{
-                  background: 'none', border: 'none', 
-                  color: countdown > 0 ? 'hsl(var(--text-dim))' : 'hsl(var(--accent-primary))', 
-                  cursor: countdown > 0 ? 'not-allowed' : 'pointer',
-                  fontSize: '0.85rem', fontWeight: 500, textDecoration: countdown > 0 ? 'none' : 'underline'
-                }}
-              >
-                {countdown > 0 ? `Resend code in ${countdown}s` : 'Resend code'}
-              </button>
-            </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-[420px] relative z-10"
+      >
+        <Card glow className="p-10">
+          <div className="flex flex-col items-center mb-10 text-center">
+            <motion.div 
+              layoutId="auth-icon"
+              className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center mb-6 shadow-lg shadow-accent-primary/20"
+            >
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={step}
+                  initial={{ opacity: 0, scale: 0.5, rotate: -90 }}
+                  animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                  exit={{ opacity: 0, scale: 0.5, rotate: 90 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {step === 'CREDENTIALS' ? <Sparkles size={24} className="text-white" /> : <KeyRound size={24} className="text-white" />}
+                </motion.div>
+              </AnimatePresence>
+            </motion.div>
             
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
-              <button
-                type="button"
-                onClick={() => setStep('CREDENTIALS')}
-                style={{
-                  background: 'none', border: 'none', 
-                  color: 'hsl(var(--text-muted))', 
-                  cursor: 'pointer',
-                  fontSize: '0.8rem', textDecoration: 'underline'
-                }}
-              >
-                Back to Login
-              </button>
-            </div>
-          </form>
-        )}
+            <h2 className="text-2xl font-display font-bold tracking-tight text-white mb-2">
+              {step === 'CREDENTIALS' ? 'Welcome Back' : 'Security Check'}
+            </h2>
+            <p className="text-sm text-text-muted">
+              {step === 'CREDENTIALS' 
+                ? 'Authenticate to access your intelligence command center.' 
+                : 'Enter the 6-digit verification code sent to your terminal.'}
+            </p>
+          </div>
 
-        {step === 'CREDENTIALS' && (
-          <p style={{ color: 'hsl(var(--text-dim))', fontSize: '0.85rem', textAlign: 'center', marginTop: '2rem' }}>
-            Don't have an account? <Link to="/signup" style={{ color: 'hsl(var(--accent-primary))', textDecoration: 'none', fontWeight: 600 }}>Sign up</Link>
-          </p>
-        )}
-      </Card>
+          <AnimatePresence>
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden mb-6"
+              >
+                <div className="bg-danger/10 border border-danger/30 p-3 rounded-xl text-danger flex gap-3 text-sm font-medium items-center">
+                  <ShieldAlert size={16} className="shrink-0" />
+                  <span>{error}</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence mode="wait">
+            {step === 'CREDENTIALS' ? (
+              <motion.div
+                key="credentials"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <form onSubmit={handleCredentialsSubmit} className="flex flex-col gap-5">
+                  <Input 
+                    label="Terminal Identity"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                    placeholder="Enter username"
+                  />
+
+                  <div className="flex flex-col gap-1">
+                    <Input 
+                      label="Passkey"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                    <div className="flex justify-end mt-1">
+                      <Link to="/forgot-password" className="text-xs font-semibold text-accent-cyan hover:text-accent-primary transition-colors">
+                        Recover Passkey
+                      </Link>
+                    </div>
+                  </div>
+
+                  <Button type="submit" loading={loading} className="w-full mt-2" icon={<ArrowRight size={16} />}>
+                    Initialize Connection
+                  </Button>
+                </form>
+
+                <div className="flex items-center my-8 gap-4">
+                  <div className="flex-1 h-px bg-white/10" />
+                  <span className="text-xs uppercase tracking-widest text-text-dim font-bold">Or</span>
+                  <div className="flex-1 h-px bg-white/10" />
+                </div>
+
+                <Button type="button" variant="secondary" onClick={handleGoogleLogin} className="w-full">
+                  <Sparkles size={16} /> Authenticate via Google
+                </Button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="otp"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <form onSubmit={handleOTPSubmit} className="flex flex-col gap-5">
+                  <Input 
+                    label="6-Digit Authorization Code"
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    required
+                    placeholder="000000"
+                    maxLength={6}
+                    className="text-center tracking-[0.5em] text-2xl font-mono py-4"
+                  />
+
+                  <Button type="submit" loading={loading} className="w-full mt-2">
+                    Verify & Connect
+                  </Button>
+
+                  <div className="flex flex-col items-center gap-4 mt-4">
+                    <button
+                      type="button"
+                      disabled={countdown > 0 || loading}
+                      onClick={handleResendOTP}
+                      className={cn(
+                        "text-sm font-semibold transition-colors",
+                        countdown > 0 ? "text-text-dim cursor-not-allowed" : "text-accent-cyan hover:text-accent-primary"
+                      )}
+                    >
+                      {countdown > 0 ? `Resend code in ${countdown}s` : 'Request new code'}
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => setStep('CREDENTIALS')}
+                      className="text-xs text-text-muted hover:text-white transition-colors"
+                    >
+                      Abort connection attempt
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {step === 'CREDENTIALS' && (
+            <p className="text-sm text-text-muted text-center mt-8">
+              No authorization found? <Link to="/signup" className="text-white hover:text-accent-cyan font-semibold transition-colors">Request Access</Link>
+            </p>
+          )}
+        </Card>
+      </motion.div>
     </div>
   );
 }

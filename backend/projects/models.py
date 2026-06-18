@@ -4,14 +4,17 @@ from organizations.models import Organization
 
 class Project(models.Model):
     STATUS_CHOICES = [
-        ('ACTIVE', 'Active'),
+        ('PENDING', 'Pending'),
+        ('PROCESSING', 'Processing'),
+        ('RETRYING', 'Retrying'),
         ('COMPLETED', 'Completed'),
-        ('ARCHIVED', 'Archived'),
+        ('FAILED', 'Failed'),
+        ('PARTIAL_SUCCESS', 'Partial Success'),
     ]
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='projects')
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, default='')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -31,8 +34,10 @@ class SourceInput(models.Model):
     STATUS_CHOICES = [
         ('PENDING', 'Pending Ingestion'),
         ('PROCESSING', 'Processing'),
+        ('RETRYING', 'Retrying'),
         ('COMPLETED', 'Completed'),
         ('FAILED', 'Failed'),
+        ('PARTIAL_SUCCESS', 'Partial Success'),
     ]
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='sources')
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
@@ -105,14 +110,21 @@ class ProcessingJob(models.Model):
     STATUS_CHOICES = [
         ('PENDING', 'Pending'),
         ('RUNNING', 'Running'),
+        ('RETRYING', 'Retrying'),
         ('COMPLETED', 'Completed'),
         ('FAILED', 'Failed'),
+        ('PARTIAL_SUCCESS', 'Partial Success'),
     ]
     task_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
     source_input = models.ForeignKey(SourceInput, on_delete=models.CASCADE, related_name='jobs')
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='jobs')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     error_log = models.TextField(blank=True, default='')
+    error_type = models.CharField(max_length=255, blank=True, null=True)
+    error_message = models.TextField(blank=True, null=True)
+    failing_step = models.CharField(max_length=255, blank=True, null=True)
+    retry_count = models.IntegerField(default=0)
+    last_retry_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
