@@ -23,7 +23,7 @@ export interface Membership {
   joined_at: string;
 }
 
-export type ProjectStatus = 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+export type ProjectStatus = 'ACTIVE' | 'COMPLETED' | 'ARCHIVED' | 'PENDING' | 'PROCESSING' | 'RETRYING' | 'FAILED' | 'PARTIAL_SUCCESS';
 
 export interface Project {
   id: number;
@@ -36,7 +36,7 @@ export interface Project {
 }
 
 export type SourceType = 'VIDEO' | 'AUDIO' | 'YOUTUBE' | 'ARTICLE' | 'TRANSCRIPT' | 'SCRIPT' | 'PDF';
-export type SourceStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+export type SourceStatus = 'PENDING' | 'PROCESSING' | 'RETRYING' | 'COMPLETED' | 'FAILED' | 'PARTIAL_SUCCESS';
 
 export interface SourceInput {
   id: number;
@@ -81,7 +81,7 @@ export interface TranscriptRecord {
   created_at: string;
 }
 
-export type JobStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+export type JobStatus = 'PENDING' | 'RUNNING' | 'RETRYING' | 'COMPLETED' | 'FAILED' | 'PARTIAL_SUCCESS';
 
 export interface ProcessingJob {
   id: number;

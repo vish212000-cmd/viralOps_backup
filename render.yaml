@@ -22,7 +22,9 @@ services:
       - key: SECURE_SSL_REDIRECT
         value: "True"
       - key: FRONTEND_URL
-        sync: false # Set in dashboard
+        value: "https://www.vishnumadapakula.in"
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://www.vishnumadapakula.in,https://vishnumadapakula.in"
       - key: GEMINI_API_KEY
         sync: false # Set in dashboard
 
@@ -47,7 +49,9 @@ services:
       - key: SECURE_SSL_REDIRECT
         value: "True"
       - key: FRONTEND_URL
-        sync: false
+        value: "https://www.vishnumadapakula.in"
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://www.vishnumadapakula.in,https://vishnumadapakula.in"
       - key: GEMINI_API_KEY
         sync: false
 
@@ -72,6 +76,8 @@ services:
       - key: SECURE_SSL_REDIRECT
         value: "True"
       - key: FRONTEND_URL
-        sync: false
+        value: "https://www.vishnumadapakula.in"
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://www.vishnumadapakula.in,https://vishnumadapakula.in"
       - key: GEMINI_API_KEY
         sync: false

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../utils/api';
 import { Card } from '../components/design/Card';
 import { Input } from '../components/design/Input';
 import { Button } from '../components/design/Button';
 import { useToast } from '../context/ToastContext';
-import { Sparkles, ShieldAlert, KeyRound, CheckCircle } from 'lucide-react';
+import { Sparkles, ShieldAlert, KeyRound, CheckCircle, ArrowRight } from 'lucide-react';
+import { cn } from '../utils/cn';
 
 export default function ForgotPassword() {
   const [step, setStep] = useState<'EMAIL' | 'OTP'>('EMAIL');
@@ -64,114 +66,160 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'hsl(var(--bg-main))', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <Card glow style={{ width: '100%', maxWidth: '420px', padding: '2.5rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2.5rem' }}>
-          <div style={{ background: 'linear-gradient(135deg, hsl(var(--accent-primary)), hsl(var(--accent-secondary)))', width: '48px', height: '48px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
-            {success ? <CheckCircle size={24} color="#fff" /> : (step === 'EMAIL' ? <Sparkles size={24} color="#fff" /> : <KeyRound size={24} color="#fff" />)}
-          </div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, fontFamily: 'var(--font-display)' }}>
-            {success ? 'Password Reset' : (step === 'EMAIL' ? 'Recover Password' : 'Reset Password')}
-          </h2>
-          <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.9rem', marginTop: '0.25rem', textAlign: 'center' }}>
-            {success 
-              ? 'Your password has been changed successfully.' 
-              : (step === 'EMAIL' ? 'Enter your email to receive a reset code' : `We've sent a 6-digit code to your email. Enter it below.`)}
-          </p>
-        </div>
+    <div className="min-h-[100dvh] relative flex items-center justify-center p-4 overflow-hidden">
+      {/* Aurora Background Elements Removed for Performance */}
 
-        {error && (
-          <div style={{ background: 'hsl(var(--danger) / 0.1)', border: '1px solid hsl(var(--danger) / 0.3)', padding: '0.75rem 1rem', borderRadius: '8px', color: 'hsl(var(--danger))', display: 'flex', gap: '0.5rem', alignItems: 'flex-start', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-            <ShieldAlert size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {success ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', textAlign: 'center', margin: '1.5rem 0' }}>
-            <Link to="/login" style={{ width: '100%', marginTop: '1rem' }}>
-              <Button style={{ width: '100%', justifyContent: 'center' }}>Back to Sign In</Button>
-            </Link>
-          </div>
-        ) : step === 'EMAIL' ? (
-          <form onSubmit={handleRequestOTP} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <Input 
-              label="Email Address"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="name@example.com"
-            />
-
-            <Button type="submit" loading={loading} style={{ justifyContent: 'center', marginTop: '0.5rem' }}>
-              Send Reset Code
-            </Button>
-          </form>
-        ) : (
-          <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <Input 
-              label="6-Digit Verification Code"
-              type="text"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              required
-              placeholder="000000"
-              maxLength={6}
-              style={{ textAlign: 'center', letterSpacing: '0.25em', fontSize: '1.25rem' }}
-            />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-[420px] relative z-10"
+      >
+        <Card glow className="p-10">
+          <div className="flex flex-col items-center mb-10 text-center">
+            <motion.div 
+              layoutId="auth-icon"
+              className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center mb-6 shadow-lg shadow-accent-primary/20"
+            >
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={success ? 'SUCCESS' : step}
+                  initial={{ opacity: 0, scale: 0.5, rotate: -90 }}
+                  animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                  exit={{ opacity: 0, scale: 0.5, rotate: 90 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {success ? <CheckCircle size={24} className="text-white" /> : (step === 'EMAIL' ? <Sparkles size={24} className="text-white" /> : <KeyRound size={24} className="text-white" />)}
+                </motion.div>
+              </AnimatePresence>
+            </motion.div>
             
-            <Input 
-              label="New Password"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-            />
+            <h2 className="text-2xl font-display font-bold tracking-tight text-white mb-2">
+              {success ? 'Passkey Restored' : (step === 'EMAIL' ? 'Recover Passkey' : 'Reset Passkey')}
+            </h2>
+            <p className="text-sm text-text-muted">
+              {success 
+                ? 'Your access credentials have been securely updated.' 
+                : (step === 'EMAIL' ? 'Enter your comm link to receive an authorization code.' : `We've sent a 6-digit code to your terminal. Enter it below.`)}
+            </p>
+          </div>
 
-            <Button type="submit" loading={loading} style={{ justifyContent: 'center', marginTop: '0.5rem' }}>
-              Reset Password
-            </Button>
-
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.5rem' }}>
-              <button
-                type="button"
-                disabled={countdown > 0 || loading}
-                onClick={() => handleRequestOTP()}
-                style={{
-                  background: 'none', border: 'none', 
-                  color: countdown > 0 ? 'hsl(var(--text-dim))' : 'hsl(var(--accent-primary))', 
-                  cursor: countdown > 0 ? 'not-allowed' : 'pointer',
-                  fontSize: '0.85rem', fontWeight: 500, textDecoration: countdown > 0 ? 'none' : 'underline'
-                }}
+          <AnimatePresence>
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden mb-6"
               >
-                {countdown > 0 ? `Resend code in ${countdown}s` : 'Resend code'}
-              </button>
-            </div>
-            
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
-              <button
-                type="button"
-                onClick={() => setStep('EMAIL')}
-                style={{
-                  background: 'none', border: 'none', 
-                  color: 'hsl(var(--text-muted))', 
-                  cursor: 'pointer',
-                  fontSize: '0.8rem', textDecoration: 'underline'
-                }}
-              >
-                Change Email
-              </button>
-            </div>
-          </form>
-        )}
+                <div className="bg-danger/10 border border-danger/30 p-3 rounded-xl text-danger flex gap-3 text-sm font-medium items-center">
+                  <ShieldAlert size={16} className="shrink-0" />
+                  <span className="break-words">{error}</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        {!success && step === 'EMAIL' && (
-          <p style={{ color: 'hsl(var(--text-dim))', fontSize: '0.85rem', textAlign: 'center', marginTop: '2rem' }}>
-            Remembered your password? <Link to="/login" style={{ color: 'hsl(var(--accent-primary))', textDecoration: 'none', fontWeight: 600 }}>Sign in</Link>
-          </p>
-        )}
-      </Card>
+          <AnimatePresence mode="wait">
+            {success ? (
+              <motion.div
+                key="success"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col items-center gap-4 text-center mt-6"
+              >
+                <Link to="/login" className="w-full">
+                  <Button className="w-full justify-center">Return to Login</Button>
+                </Link>
+              </motion.div>
+            ) : step === 'EMAIL' ? (
+              <motion.div
+                key="email"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <form onSubmit={handleRequestOTP} className="flex flex-col gap-5">
+                  <Input 
+                    label="Secure Comm Link (Email)"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    placeholder="name@example.com"
+                  />
+
+                  <Button type="submit" loading={loading} className="w-full mt-2" icon={<ArrowRight size={16} />}>
+                    Send Reset Code
+                  </Button>
+                </form>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="otp"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <form onSubmit={handleResetPassword} className="flex flex-col gap-5">
+                  <Input 
+                    label="6-Digit Authorization Code"
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    required
+                    placeholder="000000"
+                    maxLength={6}
+                    className="text-center tracking-[0.5em] text-2xl font-mono py-4"
+                  />
+                  
+                  <Input 
+                    label="New Passkey"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                  />
+
+                  <Button type="submit" loading={loading} className="w-full mt-2">
+                    Confirm Changes
+                  </Button>
+
+                  <div className="flex flex-col items-center gap-4 mt-4">
+                    <button
+                      type="button"
+                      disabled={countdown > 0 || loading}
+                      onClick={() => handleRequestOTP()}
+                      className={cn(
+                        "text-sm font-semibold transition-colors",
+                        countdown > 0 ? "text-text-dim cursor-not-allowed" : "text-accent-cyan hover:text-accent-primary"
+                      )}
+                    >
+                      {countdown > 0 ? `Resend code in ${countdown}s` : 'Request new code'}
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => setStep('EMAIL')}
+                      className="text-xs text-text-muted hover:text-white transition-colors"
+                    >
+                      Use a different email
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {!success && step === 'EMAIL' && (
+            <p className="text-sm text-text-muted text-center mt-8">
+              Remembered your passkey? <Link to="/login" className="text-white hover:text-accent-cyan font-semibold transition-colors">Establish Connection</Link>
+            </p>
+          )}
+        </Card>
+      </motion.div>
     </div>
   );
 }

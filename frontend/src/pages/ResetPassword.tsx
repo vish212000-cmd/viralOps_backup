@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../utils/api';
 import { Card } from '../components/design/Card';
 import { Input } from '../components/design/Input';
@@ -24,12 +25,12 @@ export default function ResetPassword() {
     setError('');
 
     if (!token) {
-      setError('Password reset token is missing. Please request a new link.');
+      setError('Authorization token is missing. Please request a new link.');
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError('Passkeys do not match.');
       return;
     }
 
@@ -38,10 +39,10 @@ export default function ResetPassword() {
     try {
       await api.post('/api/auth/password-reset-confirm/', { token, password });
       setSuccess(true);
-      showToast('Password reset successful!', 'success');
+      showToast('Passkey reset successful!', 'success');
     } catch (err: any) {
       console.error(err);
-      setError(err?.data?.error || 'Failed to reset password. The link may have expired or is invalid.');
+      setError(err?.data?.error || 'Failed to update passkey. The link may have expired or is invalid.');
       showToast('Reset failed.', 'error');
     } finally {
       setLoading(false);
@@ -49,63 +50,88 @@ export default function ResetPassword() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'hsl(var(--bg-main))', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <Card glow style={{ width: '100%', maxWidth: '420px', padding: '2.5rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2.5rem' }}>
-          <div style={{ background: 'linear-gradient(135deg, hsl(var(--accent-primary)), hsl(var(--accent-secondary)))', width: '48px', height: '48px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
-            <Sparkles size={24} color="#fff" />
-          </div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, fontFamily: 'var(--font-display)' }}>Reset Password</h2>
-          <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.9rem', marginTop: '0.25rem', textAlign: 'center' }}>
-            Choose a secure new password for your account
-          </p>
-        </div>
+    <div className="min-h-[100dvh] relative flex items-center justify-center p-4 overflow-hidden">
+      {/* Aurora Background Elements Removed for Performance */}
 
-        {error && (
-          <div style={{ background: 'hsl(var(--danger) / 0.1)', border: '1px solid hsl(var(--danger) / 0.3)', padding: '0.75rem 1rem', borderRadius: '8px', color: 'hsl(var(--danger))', display: 'flex', gap: '0.5rem', alignItems: 'flex-start', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-            <ShieldAlert size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {success ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', textAlign: 'center', margin: '1.5rem 0' }}>
-            <div style={{ background: 'hsl(var(--success) / 0.1)', color: 'hsl(var(--success))', width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <CheckCircle size={24} />
-            </div>
-            <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.9rem' }}>
-              Your password has been successfully reset. You can now log in with your new credentials.
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-[420px] relative z-10"
+      >
+        <Card glow className="p-10">
+          <div className="flex flex-col items-center mb-10 text-center">
+            <motion.div 
+              className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center mb-6 shadow-lg shadow-accent-primary/20"
+            >
+              <Sparkles size={24} className="text-white" />
+            </motion.div>
+            
+            <h2 className="text-2xl font-display font-bold tracking-tight text-white mb-2">Configure New Passkey</h2>
+            <p className="text-sm text-text-muted">
+              Choose a secure new authentication key for your terminal.
             </p>
-            <Button onClick={() => navigate('/login')} style={{ width: '100%', marginTop: '1rem', justifyContent: 'center' }}>
-              Sign In
-            </Button>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <Input 
-              label="New Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="Create secure password"
-            />
 
-            <Input 
-              label="Confirm New Password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              placeholder="Confirm new password"
-            />
+          <AnimatePresence>
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden mb-6"
+              >
+                <div className="bg-danger/10 border border-danger/30 p-3 rounded-xl text-danger flex gap-3 text-sm font-medium items-center">
+                  <ShieldAlert size={16} className="shrink-0" />
+                  <span className="break-words">{error}</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-            <Button type="submit" loading={loading} style={{ justifyContent: 'center', marginTop: '0.5rem' }}>
-              Save Password
-            </Button>
-          </form>
-        )}
-      </Card>
+          {success ? (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center gap-6 text-center mt-6"
+            >
+              <div className="w-16 h-16 rounded-full bg-success/20 flex items-center justify-center border border-success/30 shadow-[0_0_20px_rgba(34,197,94,0.3)]">
+                <CheckCircle size={32} className="text-success" />
+              </div>
+              <p className="text-sm text-text-muted">
+                Your passkey has been successfully updated. You can now establish a connection with your new credentials.
+              </p>
+              <Button onClick={() => navigate('/login')} className="w-full mt-4 justify-center">
+                Initialize Connection
+              </Button>
+            </motion.div>
+          ) : (
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              <Input 
+                label="New Passkey"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="Minimum 8 characters"
+              />
+
+              <Input 
+                label="Confirm Passkey"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                placeholder="Repeat new passkey"
+              />
+
+              <Button type="submit" loading={loading} className="w-full mt-2">
+                Save Authorization Configuration
+              </Button>
+            </form>
+          )}
+        </Card>
+      </motion.div>
     </div>
   );
 }
