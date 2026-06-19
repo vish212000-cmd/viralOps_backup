@@ -14,6 +14,7 @@ from .health import HealthzView, ReadyView
 # Explicit router mappings for ViewSets
 project_list = ProjectViewSet.as_view({'get': 'list', 'post': 'create'})
 project_detail = ProjectViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'})
+project_retry = ProjectViewSet.as_view({'post': 'retry'})
 
 source_list = SourceInputViewSet.as_view({'get': 'list', 'post': 'create'})
 source_detail = SourceInputViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'})
@@ -46,6 +47,7 @@ urlpatterns = [
     # Projects
     path('orgs/<str:org_slug>/projects/', project_list, name='project-list'),
     path('orgs/<str:org_slug>/projects/<int:pk>/', project_detail, name='project-detail'),
+    path('orgs/<str:org_slug>/projects/<int:pk>/retry/', project_retry, name='project-retry'),
     path('orgs/<str:org_slug>/projects/<int:pk>/export_pack/', ProjectViewSet.as_view({'get': 'export_pack'}), name='project-export-pack'),
 
     # Sources (scoped to project)

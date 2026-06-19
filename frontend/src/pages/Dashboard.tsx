@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { api } from '../utils/api';
@@ -11,8 +12,9 @@ import { Card } from '../components/design/Card';
 import Sidebar from '../components/Sidebar';
 import { 
   Sparkles, Plus, Folder, Video, FileText, Link2, 
-  Settings, LogOut, Loader2, AlertCircle, Shield
+  Settings, LogOut, Loader2, AlertCircle, Shield, Activity, HardDrive, Cpu, X
 } from 'lucide-react';
+import { cn } from '../utils/cn';
 
 export default function Dashboard() {
   const { user, orgs, currentOrg, loading: authLoading, logoutUser, selectOrg, loadWorkspaces } = useAuth();
@@ -64,20 +66,10 @@ export default function Dashboard() {
       setError('');
     } catch (err) {
       console.error(err);
-      setError('Failed to fetch projects.');
+      setError('Failed to sync workspace database.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleOrgChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const slug = e.target.value;
-    if (slug === 'CREATE_NEW') {
-      setCreatingOrg(true);
-      return;
-    }
-    selectOrg(slug);
-    setLoading(true);
   };
 
   const handleCreateOrg = async (e: React.FormEvent) => {
@@ -89,10 +81,10 @@ export default function Dashboard() {
       await loadWorkspaces();
       setNewOrgName('');
       setCreatingOrg(false);
-      showToast('New workspace created!', 'success');
+      showToast('New workspace established!', 'success');
     } catch (err) {
       console.error(err);
-      setError('Failed to create workspace.');
+      setError('Failed to create workspace partition.');
       showToast('Failed to create workspace.', 'error');
       setLoading(false);
     }
@@ -106,29 +98,29 @@ export default function Dashboard() {
 
     let hasValError = false;
     if (projName.trim().length < 3) {
-      setNameError('Project name must be at least 3 characters long.');
+      setNameError('Project identity must be at least 3 characters.');
       hasValError = true;
     }
 
     if (sourceType === 'YOUTUBE') {
       const isYoutube = sourceUrl.includes('youtube.com') || sourceUrl.includes('youtu.be');
       if (!sourceUrl || !isYoutube) {
-        setUrlError('A valid YouTube URL is required (must contain youtube.com or youtu.be).');
+        setUrlError('A valid YouTube stream URL is required.');
         hasValError = true;
       }
     }
 
     if (sourceType === 'ARTICLE' && !sourceText.trim()) {
-      setTextError('Source content text body is required.');
+      setTextError('Source text data is required for analysis.');
       hasValError = true;
     }
 
     if (['VIDEO', 'AUDIO', 'PDF'].includes(sourceType)) {
       if (!selectedFile) {
-        setFileError('Please select a file to upload.');
+        setFileError('Please attach a media file for ingestion.');
         hasValError = true;
       } else if (selectedFile.size > 52428800) {
-        setFileError('File size exceeds the 50MB limit.');
+        setFileError('Payload exceeds the 50MB transfer limit.');
         hasValError = true;
       }
     }
@@ -168,7 +160,7 @@ export default function Dashboard() {
       setSelectedFile(null);
       setShowNewProj(false);
       
-      showToast('Ingestion pipeline triggered!', 'success');
+      showToast('Ingestion pipeline activated!', 'success');
       loadProjects(currentOrg.slug);
     } catch (err: any) {
       console.error(err);
@@ -178,24 +170,37 @@ export default function Dashboard() {
       } else if (errors?.file) {
         showToast(errors.file[0] || errors.file, 'error');
       } else {
-        showToast('Failed to start ingestion.', 'error');
+        showToast('Failed to initialize ingestion.', 'error');
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleLogout = () => {
-    logoutUser();
-    navigate('/');
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 200, damping: 20 } }
   };
 
   if (authLoading || (loading && orgs.length > 0)) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'hsl(var(--bg-main))' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-          <Loader2 size={40} className="loading-spinner" />
-          <span style={{ color: 'hsl(var(--text-muted))' }}>Loading workspace dashboard...</span>
+      <div className="min-h-[100dvh] flex items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-bg-base" />
+        <div className="flex flex-col items-center gap-6 relative z-10">
+          <div className="relative w-24 h-24 flex items-center justify-center">
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }} className="absolute inset-0 rounded-full border-t border-r border-accent-cyan opacity-50" />
+            <motion.div animate={{ rotate: -360 }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }} className="absolute inset-2 rounded-full border-b border-l border-accent-primary opacity-50" />
+            <Sparkles size={32} className="text-white animate-pulse" />
+          </div>
+          <p className="text-accent-cyan font-mono tracking-widest text-sm uppercase">Booting Mission Control...</p>
         </div>
       </div>
     );
@@ -204,259 +209,441 @@ export default function Dashboard() {
   // Zero State Setup Workspace
   if (orgs.length === 0 || creatingOrg) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'hsl(var(--bg-main))', padding: '1rem' }}>
-        <Card style={{ width: '100%', maxWidth: '480px', padding: '2.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-            <Sparkles size={24} color="hsl(var(--accent-primary))" />
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, fontFamily: 'var(--font-display)' }}>
-              {creatingOrg ? 'Create New Workspace' : 'Setup Your Workspace'}
-            </h2>
-          </div>
-          <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '2rem' }}>
-            To start generating hooks, captions, and short scripts, you need an organization workspace. Give your workspace a name below.
-          </p>
-          <form onSubmit={handleCreateOrg} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <Input 
-              label="Workspace Name"
-              type="text"
-              value={newOrgName}
-              onChange={(e) => setNewOrgName(e.target.value)}
-              required
-              placeholder="e.g. My Agency or Solo Brand"
-            />
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
-              <Button type="submit" style={{ flex: 1, justifyContent: 'center' }}>
-                Create Workspace
-              </Button>
-              {creatingOrg && (
-                <Button type="button" variant="secondary" onClick={() => setCreatingOrg(false)}>
-                  Cancel
-                </Button>
-              )}
+      <div className="min-h-[100dvh] relative flex items-center justify-center p-4 overflow-hidden">
+        {/* Aurora Background Elements Removed for Performance */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-[480px] relative z-10">
+          <Card glow className="p-10">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center shadow-lg shadow-accent-primary/20">
+                <HardDrive size={24} className="text-white" />
+              </div>
+              <h2 className="text-2xl font-display font-bold text-white">
+                {creatingOrg ? 'Initialize Workspace' : 'Setup Mission Control'}
+              </h2>
             </div>
-          </form>
-        </Card>
+            <p className="text-text-muted text-sm leading-relaxed mb-8">
+              Establish a new data partition to begin ingesting, processing, and repurposing content streams through the intelligence pipeline.
+            </p>
+            <form onSubmit={handleCreateOrg} className="flex flex-col gap-6">
+              <Input 
+                label="Workspace Partition Name"
+                type="text"
+                value={newOrgName}
+                onChange={(e) => setNewOrgName(e.target.value)}
+                required
+                placeholder="e.g. ALPHA-PROTOCOL"
+                className="font-mono"
+              />
+              <div className="flex gap-4 mt-2">
+                <Button type="submit" className="flex-1 justify-center">
+                  Allocate Partition
+                </Button>
+                {creatingOrg && (
+                  <Button type="button" variant="ghost" onClick={() => setCreatingOrg(false)}>
+                    Abort
+                  </Button>
+                )}
+              </div>
+            </form>
+          </Card>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="dashboard-layout">
+    <div className="min-h-[100dvh] flex bg-bg-base relative overflow-hidden pl-[80px]">
       <Sidebar />
 
-      {/* Main Content */}
-      <main className="main-content">
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Workspace Dashboard</h1>
-            <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem' }}>Manage and repurpose content in {currentOrg?.name}</p>
-          </div>
-          <Button onClick={() => setShowNewProj(true)}>
-            <Plus size={18} /> New Project
-          </Button>
-        </header>
+      {/* Main Content Area */}
+      <main className="flex-1 w-full flex flex-col relative z-10 max-h-[100dvh] overflow-y-auto overflow-x-hidden">
+        {/* Ambient Top Glow */}
+        <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-accent-primary/5 to-transparent pointer-events-none -z-10" />
 
-        {error && (
-          <div style={{ background: 'hsl(var(--danger) / 0.1)', border: '1px solid hsl(var(--danger) / 0.3)', padding: '1rem', borderRadius: '12px', color: 'hsl(var(--danger))', display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '2rem' }}>
-            <AlertCircle size={20} />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* Stats Panel */}
-        <Card style={{ padding: '1.5rem', marginBottom: '2.5rem', display: 'flex', gap: '3rem', flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Total Projects</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{projects.length}</div>
-          </div>
-          <div style={{ width: '1px', background: 'hsl(var(--border-muted))' }} />
-          <div>
-            <div style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>AI Credits Used</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>12 / 60 <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'hsl(var(--text-dim))' }}>generations</span></div>
-          </div>
-        </Card>
-
-        {/* Projects list */}
-        <section>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.25rem' }}>Your Projects</h2>
-          
-          {projects.length === 0 ? (
-            <Card style={{ padding: '4rem 2rem', textAlign: 'center' }}>
-              <Folder size={48} style={{ color: 'hsl(var(--text-dim))', marginBottom: '1rem' }} />
-              <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>No projects created yet</h3>
-              <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                Get started by creating your first repurposing project.
-              </p>
-              <Button onClick={() => setShowNewProj(true)}>
-                <Plus size={16} /> Create Project
-              </Button>
-            </Card>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
-              {projects.map(proj => (
-                <Card key={proj.id} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '180px' }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                      <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{proj.name}</h3>
-                      <Badge status={proj.status} />
-                    </div>
-                    <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.9rem', lineHeight: 1.5, marginBottom: '1.5rem' }}>
-                      {proj.description || 'No description provided.'}
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid hsl(var(--border-muted))', paddingTop: '0.75rem' }}>
-                    <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-dim))' }}>
-                      Created: {new Date(proj.created_at).toLocaleDateString()}
-                    </span>
-                    <Link to={`/projects/${proj.id}`} className="button secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', textDecoration: 'none' }}>
-                      Open Workspace
-                    </Link>
-                  </div>
-                </Card>
-              ))}
+        <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-10">
+          <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+            <div>
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 mb-2">
+                <Activity size={20} className="text-accent-cyan" />
+                <span className="text-xs font-mono tracking-widest text-accent-cyan uppercase font-semibold">System Active</span>
+              </motion.div>
+              <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-4xl md:text-5xl font-display font-bold text-white tracking-tight">
+                Mission Control
+              </motion.h1>
+              <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-text-muted mt-2">
+                Monitoring content intelligence operations for <span className="text-white font-medium">{currentOrg?.name}</span>
+              </motion.p>
             </div>
-          )}
-        </section>
+            
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }}>
+              <Button onClick={() => setShowNewProj(true)} icon={<Plus size={18} />}>
+                Initialize Ingestion
+              </Button>
+            </motion.div>
+          </header>
 
-        {/* Ingestion Modal Dialog */}
-        {showNewProj && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0, 0, 0, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
-            <Card style={{ width: '100%', maxWidth: '640px', padding: '2.5rem', maxHeight: '90vh', overflowY: 'auto' }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1.5rem' }}>Create New Repurposing Project</h2>
-              
-              <form onSubmit={handleCreateProject} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <div style={{ display: 'flex', gap: '1rem', flexDirection: 'row' }}>
-                  <div style={{ flex: 1 }}>
-                    <Input 
-                      label="Project Name"
-                      type="text"
-                      value={projName}
-                      onChange={(e) => setProjName(e.target.value)}
-                      error={nameError}
-                      required
-                      placeholder="e.g. Episode 23 Podcast Hook"
-                    />
+          <AnimatePresence>
+            {error && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-8 overflow-hidden">
+                <div className="bg-danger/10 border border-danger/30 p-4 rounded-2xl text-danger flex items-center gap-3">
+                  <AlertCircle size={20} />
+                  <span className="font-medium text-sm">{error}</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Bento Grid Analytics */}
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12"
+          >
+            <motion.div variants={itemVariants}>
+              <Card glow className="p-6 flex flex-col justify-between h-full min-h-[140px] bg-gradient-to-br from-bg-elevated/80 to-bg-surface/80">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-accent-primary/20 flex items-center justify-center border border-accent-primary/30">
+                    <Folder size={18} className="text-accent-primary" />
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <Input 
-                      label="Source Title"
-                      type="text"
-                      value={sourceTitle}
-                      onChange={(e) => setSourceTitle(e.target.value)}
-                      required
-                      placeholder="e.g. AI Strategy Video"
-                    />
+                  <span className="text-[10px] font-mono tracking-widest text-text-dim uppercase">Total Streams</span>
+                </div>
+                <div>
+                  <div className="text-3xl font-display font-bold text-white">{projects.length}</div>
+                  <div className="text-xs text-success mt-1 flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" /> Active nodes
                   </div>
                 </div>
+              </Card>
+            </motion.div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'hsl(var(--text-muted))' }}>Description (Optional)</label>
-                  <textarea 
-                    value={projDesc} 
-                    onChange={(e) => setProjDesc(e.target.value)} 
-                    placeholder="Describe this project context..."
-                    rows={2}
-                  />
-                </div>
-
-                <div style={{ borderTop: '1px solid hsl(var(--border-muted))', paddingTop: '1.25rem' }}>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem' }}>Content Ingestion Source</h3>
-                  
-                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-                    {[
-                      { id: 'ARTICLE', label: 'Article/Text', icon: <FileText size={16} /> },
-                      { id: 'YOUTUBE', label: 'YouTube URL', icon: <Link2 size={16} /> },
-                      { id: 'VIDEO', label: 'Video Upload', icon: <Video size={16} /> },
-                      { id: 'AUDIO', label: 'Audio Upload', icon: <Video size={16} /> },
-                      { id: 'PDF', label: 'PDF Document', icon: <FileText size={16} /> },
-                    ].map(type => (
-                      <Button
-                        key={type.id}
-                        type="button"
-                        variant={sourceType === type.id ? 'primary' : 'secondary'}
-                        onClick={() => {
-                          setSourceType(type.id as SourceType);
-                          setSelectedFile(null);
-                          setFileError('');
-                        }}
-                        style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
-                      >
-                        {type.icon} {type.label}
-                      </Button>
-                    ))}
+            <motion.div variants={itemVariants}>
+              <Card className="p-6 flex flex-col justify-between h-full min-h-[140px] border-white/5 relative overflow-hidden">
+                {/* Aurora Background Elements Removed for Performance */}
+                <div className="flex justify-between items-start mb-4 relative z-10">
+                  <div className="w-10 h-10 rounded-lg bg-accent-cyan/10 flex items-center justify-center border border-accent-cyan/20">
+                    <Cpu size={18} className="text-accent-cyan" />
                   </div>
+                  <span className="text-[10px] font-mono tracking-widest text-text-dim uppercase">Compute Load</span>
+                </div>
+                <div className="relative z-10">
+                  <div className="text-3xl font-mono font-bold text-white flex items-baseline gap-2">
+                    12 <span className="text-sm font-sans text-text-muted font-medium">/ 60</span>
+                  </div>
+                  <div className="text-xs text-text-muted mt-1">Generations consumed</div>
+                  <div className="w-full h-1 bg-white/10 rounded-full mt-3 overflow-hidden">
+                    <div className="h-full bg-accent-cyan w-[20%] rounded-full shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
 
-                  {sourceType === 'YOUTUBE' && (
-                    <Input 
-                      label="YouTube Link"
-                      type="url"
-                      value={sourceUrl}
-                      onChange={(e) => setSourceUrl(e.target.value)}
-                      error={urlError}
-                      required
-                      placeholder="https://www.youtube.com/watch?v=..."
-                    />
-                  )}
+            <motion.div variants={itemVariants}>
+              <Card className="p-6 flex flex-col justify-between h-full min-h-[140px] border-white/5">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center border border-white/10">
+                    <Shield size={18} className="text-text-muted" />
+                  </div>
+                  <span className="text-[10px] font-mono tracking-widest text-text-dim uppercase">System Status</span>
+                </div>
+                <div>
+                  <div className="text-lg font-display font-bold text-white">Nominal</div>
+                  <div className="text-xs text-text-muted mt-1">All pipelines operational</div>
+                </div>
+              </Card>
+            </motion.div>
+          </motion.div>
 
-                  {['VIDEO', 'AUDIO', 'PDF'].includes(sourceType) && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1rem' }}>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'hsl(var(--text-muted))' }}>
-                        Upload {sourceType === 'VIDEO' ? 'Video' : sourceType === 'AUDIO' ? 'Audio' : 'PDF'} File (Max 50MB)
-                      </label>
-                      <input 
-                        type="file"
-                        accept={sourceType === 'VIDEO' ? 'video/*' : sourceType === 'AUDIO' ? 'audio/*' : '.pdf'}
-                        onChange={(e) => {
-                          const f = e.target.files?.[0] || null;
-                          setSelectedFile(f);
-                        }}
-                        style={{
-                          background: 'hsl(var(--border-muted) / 0.1)',
-                          border: '1px solid hsl(var(--border-muted))',
-                          padding: '0.75rem',
-                          borderRadius: '8px',
-                          color: 'hsl(var(--text-primary))',
-                        }}
-                        required
-                      />
-                      {fileError && <span style={{ fontSize: '0.75rem', color: 'hsl(var(--danger))' }}>{fileError}</span>}
-                      {selectedFile && (
-                        <div style={{ fontSize: '0.8rem', color: 'hsl(var(--success))', marginTop: '0.25rem' }}>
-                          Selected: {selectedFile.name} ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
+          {/* Active Projects List */}
+          <motion.section 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, type: "spring", stiffness: 200, damping: 20 }}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-display font-bold text-white">Active Data Streams</h2>
+              <div className="text-xs text-text-dim font-mono uppercase tracking-widest">Live Sync</div>
+            </div>
+            
+            {projects.length === 0 ? (
+              <Card className="p-16 flex flex-col items-center justify-center text-center border-dashed border-white/10 bg-white/[0.02]">
+                <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 mb-4 shadow-inner">
+                  <Database size={24} className="text-text-dim" />
+                </div>
+                <h3 className="text-lg font-display font-bold text-white mb-2">No active streams detected</h3>
+                <p className="text-sm text-text-muted max-w-md mb-8">
+                  Establish a new intelligence pipeline to begin transcribing, analyzing, and repurposing content.
+                </p>
+                <Button onClick={() => setShowNewProj(true)} icon={<Plus size={16} />}>
+                  Initialize Pipeline
+                </Button>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <AnimatePresence>
+                  {projects.map(proj => (
+                    <motion.div
+                      key={proj.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      whileHover={{ y: -4 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    >
+                      <Card className="h-full min-h-[220px] flex flex-col p-6 group transition-all hover:bg-bg-surface hover:border-white/20 hover:shadow-[0_10px_40px_-10px_rgba(139,92,246,0.15)]">
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start gap-4 mb-4">
+                            <h3 className="text-lg font-bold text-white leading-tight line-clamp-2 font-display group-hover:text-accent-cyan transition-colors">
+                              {proj.name}
+                            </h3>
+                            <Badge status={proj.status} className="shrink-0" />
+                          </div>
+                          <p className="text-sm text-text-muted line-clamp-3 leading-relaxed">
+                            {proj.description || 'No contextual metadata provided for this stream.'}
+                          </p>
                         </div>
-                      )}
-                    </div>
-                  )}
-
-                  {sourceType === 'ARTICLE' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'hsl(var(--text-muted))' }}>Content Text / Script / Blog Article</label>
-                      <textarea 
-                        value={sourceText} 
-                        onChange={(e) => setSourceText(e.target.value)} 
-                        required 
-                        placeholder="Paste article text, blog post, transcript or raw script here..."
-                        rows={6}
-                        style={{ borderColor: textError ? 'hsl(var(--danger))' : undefined }}
-                      />
-                      {textError && <span style={{ fontSize: '0.75rem', color: 'hsl(var(--danger))' }}>{textError}</span>}
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
-                  <Button type="button" variant="secondary" onClick={() => setShowNewProj(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" loading={submitting}>
-                    Start Ingestion Pipeline
-                  </Button>
-                </div>
-              </form>
-            </Card>
-          </div>
-        )}
+                        
+                        <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Activity size={12} className="text-text-dim" />
+                            <span className="text-[10px] font-mono tracking-wider text-text-dim uppercase">
+                              {new Date(proj.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          
+                          <Link to={`/projects/${proj.id}`}>
+                            <Button variant="ghost" className="px-4 py-2 text-xs hover:bg-accent-primary/10 hover:text-accent-primary">
+                              Enter Terminal
+                            </Button>
+                          </Link>
+                        </div>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+          </motion.section>
+        </div>
       </main>
+
+      {/* Ingestion Immersive Overlay */}
+      <AnimatePresence>
+        {showNewProj && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
+          >
+            <div className="absolute inset-0 bg-bg-base/90 backdrop-blur-md" onClick={() => setShowNewProj(false)} />
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="relative w-full max-w-[720px] max-h-[90dvh] flex flex-col"
+            >
+              <Card glow className="w-full h-full flex flex-col bg-bg-surface/95 border-white/10 shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden">
+                <div className="flex items-center justify-between p-6 sm:p-8 border-b border-white/5 bg-white/[0.02]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-accent-cyan/10 flex items-center justify-center border border-accent-cyan/20">
+                      <Cpu size={20} className="text-accent-cyan" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-display font-bold text-white">Initialize Pipeline</h2>
+                      <p className="text-xs text-text-muted font-mono uppercase tracking-widest mt-1">Configure ingestion parameters</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setShowNewProj(false)}
+                    aria-label="Close modal"
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-text-muted hover:bg-white/10 hover:text-white transition-colors focus-visible:outline-accent-cyan"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                
+                <div className="p-6 sm:p-8 overflow-y-auto custom-scrollbar">
+                  <form id="ingestion-form" onSubmit={handleCreateProject} className="flex flex-col gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <Input 
+                        label="Pipeline Identity"
+                        type="text"
+                        value={projName}
+                        onChange={(e) => setProjName(e.target.value)}
+                        error={nameError}
+                        required
+                        placeholder="e.g. ALPHA-HOOKS-01"
+                        className="font-mono"
+                      />
+                      <Input 
+                        label="Source Nomenclature"
+                        type="text"
+                        value={sourceTitle}
+                        onChange={(e) => setSourceTitle(e.target.value)}
+                        required
+                        placeholder="e.g. Masterclass V1"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-semibold text-text-muted">Contextual Metadata <span className="text-xs font-normal text-text-dim">(Optional)</span></label>
+                      <textarea 
+                        value={projDesc} 
+                        onChange={(e) => setProjDesc(e.target.value)} 
+                        placeholder="Provide background parameters for the AI processing engine..."
+                        rows={3}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl text-white px-4 py-3 font-sans outline-none transition-all placeholder:text-text-dim focus:bg-white/10 focus:border-accent-cyan/50 resize-none"
+                      />
+                    </div>
+
+                    <div className="pt-6 border-t border-white/5 mt-2">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-bold text-white uppercase tracking-widest font-mono">Payload Format</h3>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+                        {[
+                          { id: 'ARTICLE', label: 'Raw Text', icon: FileText },
+                          { id: 'YOUTUBE', label: 'Stream', icon: Link2 },
+                          { id: 'VIDEO', label: 'Video', icon: Video },
+                          { id: 'AUDIO', label: 'Audio', icon: Video }, // reusing icon for brevity or use Mic if available, using Video based on original
+                          { id: 'PDF', label: 'Document', icon: FileText },
+                        ].map(type => {
+                          const Icon = type.icon;
+                          const isActive = sourceType === type.id;
+                          return (
+                            <button
+                              key={type.id}
+                              type="button"
+                              onClick={() => {
+                                setSourceType(type.id as SourceType);
+                                setSelectedFile(null);
+                                setFileError('');
+                              }}
+                              className={cn(
+                                "flex flex-col items-center justify-center gap-2 p-4 rounded-xl border transition-all duration-200",
+                                isActive 
+                                  ? "bg-accent-primary/10 border-accent-primary text-accent-primary shadow-[inset_0_0_20px_rgba(139,92,246,0.1)]" 
+                                  : "bg-white/5 border-white/10 text-text-muted hover:bg-white/10 hover:text-white hover:border-white/20"
+                              )}
+                            >
+                              <Icon size={20} className={isActive ? "text-accent-primary" : ""} />
+                              <span className="text-xs font-bold">{type.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <AnimatePresence mode="wait">
+                        {sourceType === 'YOUTUBE' && (
+                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                            <Input 
+                              label="Network Stream URL"
+                              type="url"
+                              value={sourceUrl}
+                              onChange={(e) => setSourceUrl(e.target.value)}
+                              error={urlError}
+                              required
+                              placeholder="https://www.youtube.com/watch?v=..."
+                              className="font-mono text-sm"
+                            />
+                          </motion.div>
+                        )}
+
+                        {['VIDEO', 'AUDIO', 'PDF'].includes(sourceType) && (
+                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                            <div className="flex flex-col gap-2">
+                              <label className="text-sm font-semibold text-text-muted">
+                                Binary Payload <span className="text-xs font-normal text-accent-cyan">(Max 50MB)</span>
+                              </label>
+                              <div className="relative group">
+                                <input 
+                                  type="file"
+                                  accept={sourceType === 'VIDEO' ? 'video/*' : sourceType === 'AUDIO' ? 'audio/*' : '.pdf'}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0] || null;
+                                    setSelectedFile(f);
+                                    setFileError('');
+                                  }}
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                  required
+                                />
+                                <div className={cn(
+                                  "w-full flex items-center justify-center p-8 border-2 border-dashed rounded-xl transition-colors",
+                                  fileError ? "border-danger/50 bg-danger/5" : "border-white/10 bg-white/[0.02] group-hover:bg-white/5 group-hover:border-accent-cyan/50"
+                                )}>
+                                  <div className="flex flex-col items-center gap-2 text-center pointer-events-none">
+                                    <HardDrive size={24} className={selectedFile ? "text-accent-cyan" : "text-text-dim"} />
+                                    {selectedFile ? (
+                                      <>
+                                        <span className="text-sm font-medium text-white">{selectedFile.name}</span>
+                                        <span className="text-xs text-accent-cyan font-mono">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span className="text-sm font-medium text-white">Click or drag file here</span>
+                                        <span className="text-xs text-text-dim">Supported formats depend on selection</span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              {fileError && <span className="text-xs text-danger font-medium mt-1">{fileError}</span>}
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {sourceType === 'ARTICLE' && (
+                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                            <div className="flex flex-col gap-2">
+                              <label className="text-sm font-semibold text-text-muted">Raw Text Data</label>
+                              <textarea 
+                                value={sourceText} 
+                                onChange={(e) => setSourceText(e.target.value)} 
+                                required 
+                                placeholder="Paste article text, blog post, transcript or raw script here..."
+                                rows={6}
+                                className={cn(
+                                  "w-full bg-white/5 border border-white/10 rounded-xl text-white px-4 py-3 font-mono text-sm outline-none transition-all placeholder:text-text-dim focus:bg-white/10 focus:border-accent-cyan/50 resize-none",
+                                  textError && "border-danger focus:border-danger bg-danger/5"
+                                )}
+                              />
+                              {textError && <span className="text-xs text-danger font-medium mt-1">{textError}</span>}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </form>
+                </div>
+                
+                <div className="p-6 border-t border-white/5 bg-white/[0.02] flex items-center justify-end gap-4 shrink-0">
+                  <Button type="button" variant="ghost" onClick={() => setShowNewProj(false)}>
+                    Abort
+                  </Button>
+                  <Button type="submit" form="ingestion-form" loading={submitting} icon={<PlayCircle size={16} />}>
+                    Execute Initialization
+                  </Button>
+                </div>
+              </Card>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+// Quick helper for missing icon (used in the button above)
+function PlayCircle({ size, className }: { size?: number, className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="12" r="10"></circle>
+      <polygon points="10 8 16 12 10 16 10 8"></polygon>
+    </svg>
   );
 }

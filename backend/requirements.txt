@@ -26,3 +26,4 @@ setuptools>=68.0.0,<70.0.0
 
 
 django-anymail[resend]>=10.2,<11.0
+tenacity>=8.0.0
