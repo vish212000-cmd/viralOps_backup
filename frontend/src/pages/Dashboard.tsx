@@ -9,10 +9,9 @@ import { Button } from '../components/design/Button';
 import { Input } from '../components/design/Input';
 import { Badge } from '../components/design/Badge';
 import { Card } from '../components/design/Card';
-import Sidebar from '../components/Sidebar';
 import { 
   Sparkles, Plus, Folder, Video, FileText, Link2, 
-  Settings, LogOut, Loader2, AlertCircle, Shield, Activity, HardDrive, Cpu, X
+  Settings, LogOut, Loader2, AlertCircle, Shield, Activity, HardDrive, Cpu, X, Database
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -252,15 +251,11 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-[100dvh] flex bg-bg-base relative overflow-hidden pl-[80px]">
-      <Sidebar />
+    <div className="flex-1 w-full flex flex-col relative z-10 max-h-[100dvh] overflow-y-auto overflow-x-hidden">
+      {/* Ambient Top Glow */}
+      <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-accent-primary/5 to-transparent pointer-events-none -z-10" />
 
-      {/* Main Content Area */}
-      <main className="flex-1 w-full flex flex-col relative z-10 max-h-[100dvh] overflow-y-auto overflow-x-hidden">
-        {/* Ambient Top Glow */}
-        <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-accent-primary/5 to-transparent pointer-events-none -z-10" />
-
-        <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-10">
+      <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-10">
           <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
             <div>
               <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 mb-2">
@@ -426,8 +421,7 @@ export default function Dashboard() {
             )}
           </motion.section>
         </div>
-      </main>
-
+      
       {/* Ingestion Immersive Overlay */}
       <AnimatePresence>
         {showNewProj && (
