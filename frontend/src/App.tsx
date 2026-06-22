@@ -53,8 +53,10 @@ const AcceptInvite = lazyImportWithRecovery(() => import('./pages/AcceptInvite')
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import AppLayout from './components/AppLayout';
 
 import * as Sentry from "@sentry/react";
+
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -110,41 +112,19 @@ function App() {
                 <Route path="/refund" element={<Policies page="refund" />} />
                 
                 {/* Private workspaces routes */}
-                <Route path="/dashboard" element={
+                <Route element={
                   <PrivateRoute>
-                    <Dashboard />
+                    <AppLayout />
                   </PrivateRoute>
-                } />
-                <Route path="/projects/:projectId" element={
-                  <PrivateRoute>
-                    <ProjectDetails />
-                  </PrivateRoute>
-                } />
-                <Route path="/projects/:projectId/moments" element={
-                  <PrivateRoute>
-                    <MomentsWorkspace />
-                  </PrivateRoute>
-                } />
-                <Route path="/preferences" element={
-                  <PrivateRoute>
-                    <Preferences />
-                  </PrivateRoute>
-                } />
-                <Route path="/billing" element={
-                  <PrivateRoute>
-                    <Billing />
-                  </PrivateRoute>
-                } />
-                <Route path="/analytics" element={
-                  <PrivateRoute>
-                    <Analytics />
-                  </PrivateRoute>
-                } />
-                <Route path="/admin" element={
-                  <PrivateRoute>
-                    <AdminDashboard />
-                  </PrivateRoute>
-                } />
+                }>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/projects/:projectId" element={<ProjectDetails />} />
+                  <Route path="/projects/:projectId/moments" element={<MomentsWorkspace />} />
+                  <Route path="/preferences" element={<Preferences />} />
+                  <Route path="/billing" element={<Billing />} />
+                  <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/admin" element={<AdminDashboard />} />
+                </Route>
               </Routes>
             </Suspense>
           </Router>

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { billingApi } from '../services/billingApi';
-import Sidebar from '../components/Sidebar';
 import { Card } from '../components/design/Card';
 import { Button } from '../components/design/Button';
 import { Input } from '../components/design/Input';
@@ -359,11 +358,13 @@ export default function Billing() {
 
   if (loading) {
     return (
-      <div className="dashboard-layout">
-        <Sidebar />
-        <main className="main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="flex-1 w-full flex flex-col relative z-10 max-h-[100dvh] overflow-y-auto overflow-x-hidden">
+        {/* Ambient Top Glow */}
+        <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-accent-primary/5 to-transparent pointer-events-none -z-10" />
+
+        <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-10 flex items-center justify-center" style={{ minHeight: '60vh' }}>
           <Loader2 className="loading-spinner" size={40} />
-        </main>
+        </div>
       </div>
     );
   }
@@ -380,10 +381,11 @@ export default function Billing() {
   const gensPercent = Math.min((currentGenerations / maxGenerations) * 100, 100);
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar />
+    <div className="flex-1 w-full flex flex-col relative z-10 max-h-[100dvh] overflow-y-auto overflow-x-hidden">
+      {/* Ambient Top Glow */}
+      <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-accent-primary/5 to-transparent pointer-events-none -z-10" />
 
-      <main className="main-content">
+      <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-10">
         <header style={{ marginBottom: '2.5rem' }}>
           <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Workspace Billing Settings</h1>
           <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', marginTop: '0.25rem' }}>
@@ -639,7 +641,7 @@ export default function Billing() {
             </Card>
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }

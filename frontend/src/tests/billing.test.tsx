@@ -94,7 +94,9 @@ describe('Billing Page', () => {
     render(
       <MemoryRouter>
         <ToastProvider>
-          <Billing />
+          <main>
+            <Billing />
+          </main>
         </ToastProvider>
       </MemoryRouter>
     );
@@ -126,7 +128,9 @@ describe('Billing Page', () => {
     render(
       <MemoryRouter>
         <ToastProvider>
-          <Billing />
+          <main>
+            <Billing />
+          </main>
         </ToastProvider>
       </MemoryRouter>
     );
@@ -165,7 +169,9 @@ describe('Billing Page', () => {
     render(
       <MemoryRouter>
         <ToastProvider>
-          <Billing />
+          <main>
+            <Billing />
+          </main>
         </ToastProvider>
       </MemoryRouter>
     );

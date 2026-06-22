@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { api } from '../utils/api';
-import Sidebar from '../components/Sidebar';
 import { Card } from '../components/design/Card';
 import { Badge } from '../components/design/Badge';
 import { Button } from '../components/design/Button';
@@ -97,11 +96,13 @@ export default function Analytics() {
 
   if (loading) {
     return (
-      <div className="dashboard-layout">
-        <Sidebar />
-        <main className="main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="flex-1 w-full flex flex-col relative z-10 max-h-[100dvh] overflow-y-auto overflow-x-hidden">
+        {/* Ambient Top Glow */}
+        <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-accent-primary/5 to-transparent pointer-events-none -z-10" />
+
+        <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-10 flex items-center justify-center" style={{ minHeight: '60vh' }}>
           <Loader2 className="loading-spinner" size={40} />
-        </main>
+        </div>
       </div>
     );
   }
@@ -112,10 +113,11 @@ export default function Analytics() {
   const projPaths = trends ? renderSVGPath(trends.projects, svgWidth, svgHeight) : null;
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar />
+    <div className="flex-1 w-full flex flex-col relative z-10 max-h-[100dvh] overflow-y-auto overflow-x-hidden">
+      {/* Ambient Top Glow */}
+      <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-accent-primary/5 to-transparent pointer-events-none -z-10" />
 
-      <main className="main-content">
+      <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-10">
         {/* Header */}
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
           <div>
@@ -286,7 +288,7 @@ export default function Analytics() {
             </ul>
           </Card>
         </section>
-      </main>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { api } from '../utils/api';
@@ -64,11 +64,11 @@ describe('Reusable Design System Components', () => {
     const { rerender } = render(<Button>Click Me</Button>);
     const button = screen.getByRole('button', { name: /click me/i });
     expect(button).toBeInTheDocument();
-    expect(button).toHaveClass('button');
+    expect(button).toHaveClass('bg-accent-primary');
 
     rerender(<Button variant="secondary">Secondary Button</Button>);
     const secButton = screen.getByRole('button', { name: /secondary button/i });
-    expect(secButton).toHaveClass('secondary');
+    expect(secButton).toHaveClass('bg-white/5');
   });
 
   it('renders Input with labels and displays errors when validated', () => {
@@ -84,25 +84,25 @@ describe('Reusable Design System Components', () => {
     expect(screen.getByText('Username must be unique')).toBeInTheDocument();
     
     const input = screen.getByRole('textbox') as HTMLInputElement;
-    expect(input.style.borderColor).toBe('hsl(var(--danger))');
+    expect(input).toHaveClass('border-danger');
   });
 
   it('renders Badges with correct status mappings', () => {
     const { rerender } = render(<Badge status="COMPLETED" />);
-    expect(screen.getByText('COMPLETED')).toHaveClass('badge-active');
+    expect(screen.getByText('COMPLETED')).toHaveClass('text-success');
 
     rerender(<Badge status="ACTIVE" />);
-    expect(screen.getByText('ACTIVE')).toHaveClass('badge-active');
+    expect(screen.getByText('ACTIVE')).toHaveClass('text-success');
 
     rerender(<Badge status="PENDING" />);
-    expect(screen.getByText('PENDING')).toHaveClass('badge-pending');
+    expect(screen.getByText('PENDING')).toHaveClass('text-warning');
   });
 
   it('renders Card with glassmorphism styles', () => {
     render(<Card>Card Content</Card>);
     const card = screen.getByText('Card Content');
     expect(card).toBeInTheDocument();
-    expect(card).toHaveClass('glass-panel');
+    expect(card.parentElement).toHaveClass('bg-bg-elevated/65');
   });
 });
 
@@ -137,9 +137,9 @@ describe('Login Page', () => {
       </MemoryRouter>
     );
 
-    const usernameInput = screen.getByLabelText(/username/i);
-    const passwordInput = screen.getByLabelText(/password/i);
-    const submitButton = screen.getByRole('button', { name: /sign in/i });
+    const usernameInput = screen.getByLabelText(/Terminal Identity/i);
+    const passwordInput = screen.getByLabelText(/Passkey/i);
+    const submitButton = screen.getByRole('button', { name: /Initialize Connection/i });
 
     expect(usernameInput).toBeInTheDocument();
     expect(passwordInput).toBeInTheDocument();
@@ -164,9 +164,9 @@ describe('Dashboard Page', () => {
     );
 
     // Wait for the loader to clear and verify mock workspace views are present
-    const header = await screen.findByText('Workspace Dashboard');
+    const header = await screen.findByText('Mission Control');
     expect(header).toBeInTheDocument();
-    expect(screen.getByText('Your Projects')).toBeInTheDocument();
+    expect(screen.getByText('Active Data Streams')).toBeInTheDocument();
   });
 });
 
@@ -177,6 +177,11 @@ import Analytics from '../pages/Analytics';
 import Policies from '../pages/Policies';
 
 describe('Unified Sidebar Component', () => {
+  beforeEach(() => {
+    window.innerWidth = 1280;
+    window.dispatchEvent(new Event('resize'));
+  });
+
   it('renders logo and navigation links', async () => {
     render(
       <MemoryRouter>
@@ -185,7 +190,7 @@ describe('Unified Sidebar Component', () => {
         </React.Suspense>
       </MemoryRouter>
     );
-    expect(await screen.findByText('Viral')).toBeInTheDocument();
+    expect(await screen.findByText('Viral', { exact: false })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /projects/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /brand voice/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /analytics/i })).toBeInTheDocument();

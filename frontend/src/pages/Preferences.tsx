@@ -6,7 +6,6 @@ import { api } from '../utils/api';
 import { MemoryRecord } from '../types';
 import { Button } from '../components/design/Button';
 import { Card } from '../components/design/Card';
-import Sidebar from '../components/Sidebar';
 import { Sparkles, Save, Loader2, Folder, Settings, Shield, LogOut } from 'lucide-react';
 
 export default function Preferences() {
@@ -88,11 +87,11 @@ export default function Preferences() {
   }
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar />
+    <div className="flex-1 w-full flex flex-col relative z-10 max-h-[100dvh] overflow-y-auto overflow-x-hidden">
+      {/* Ambient Top Glow */}
+      <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-accent-primary/5 to-transparent pointer-events-none -z-10" />
 
-      {/* Main Content */}
-      <main className="main-content">
+      <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-10">
         <header style={{ marginBottom: '2.5rem' }}>
           <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Brand Voice Preferences</h1>
           <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', marginTop: '0.25rem' }}>
@@ -142,7 +141,7 @@ export default function Preferences() {
             </div>
           </Card>
         </form>
-      </main>
+      </div>
     </div>
   );
 }
