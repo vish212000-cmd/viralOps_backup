@@ -7,7 +7,6 @@ import { ProcessingJob, AuditLog as LogItem } from '../types';
 import { Button } from '../components/design/Button';
 import { Badge } from '../components/design/Badge';
 import { Card } from '../components/design/Card';
-import Sidebar from '../components/Sidebar';
 import { 
   Sparkles, Loader2, RefreshCw, AlertOctagon, ShieldAlert, CheckCircle, 
   Clock, Activity, Shield, Folder, Settings, LogOut, Terminal, Users, Layers, DollarSign
@@ -117,9 +116,11 @@ export default function AdminDashboard() {
 
   if (error || !summary || !analytics || !health) {
     return (
-      <div className="dashboard-layout">
-        <Sidebar />
-        <main className="main-content" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+      <div className="flex-1 w-full flex flex-col relative z-10 max-h-[100dvh] overflow-y-auto overflow-x-hidden">
+        {/* Ambient Top Glow */}
+        <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-accent-primary/5 to-transparent pointer-events-none -z-10" />
+
+        <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-10 flex flex-col justify-center items-center" style={{ minHeight: '60vh' }}>
           <ShieldAlert size={48} color="hsl(var(--danger))" style={{ marginBottom: '1.5rem' }} />
           <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.5rem' }}>Access Denied</h2>
           <p style={{ color: 'hsl(var(--text-muted))', maxWidth: '420px', textAlign: 'center', lineHeight: 1.6, marginBottom: '2rem' }}>
@@ -128,17 +129,17 @@ export default function AdminDashboard() {
           <Link to="/dashboard" className="button" style={{ textDecoration: 'none' }}>
             Return to Projects Dashboard
           </Link>
-        </main>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar />
+    <div className="flex-1 w-full flex flex-col relative z-10 max-h-[100dvh] overflow-y-auto overflow-x-hidden">
+      {/* Ambient Top Glow */}
+      <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-accent-primary/5 to-transparent pointer-events-none -z-10" />
 
-      {/* Main Operational Panel */}
-      <main className="main-content">
+      <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-10">
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
           <div>
             <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Super Admin Operations</h1>
@@ -313,7 +314,7 @@ export default function AdminDashboard() {
           </Card>
         </section>
 
-      </main>
+      </div>
     </div>
   );
 }

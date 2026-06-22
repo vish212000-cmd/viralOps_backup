@@ -465,43 +465,11 @@ export default function ProjectDetails() {
   const activeSource = sources[0];
 
   return (
-    <div className="dashboard-layout">
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-            <Sparkles size={24} color="hsl(var(--accent-primary))" />
-            <span style={{ fontSize: '1.3rem', fontWeight: 800, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>
-              Viral<span style={{ color: 'hsl(var(--accent-primary))' }}>Ops</span>
-            </span>
-          </div>
+    <div className="flex-1 w-full flex flex-col relative z-10 max-h-[100dvh] overflow-y-auto overflow-x-hidden">
+      {/* Ambient Top Glow */}
+      <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-accent-primary/5 to-transparent pointer-events-none -z-10" />
 
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.8rem', borderRadius: '8px', color: 'hsl(var(--text-primary))', textDecoration: 'none', background: 'hsl(var(--border-muted) / 0.3)', fontWeight: 600 }}>
-              <Folder size={18} /> Projects
-            </Link>
-            <Link to="/preferences" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.8rem', borderRadius: '8px', color: 'hsl(var(--text-muted))', textDecoration: 'none', fontWeight: 500 }}>
-              <Settings size={18} /> Brand Voice
-            </Link>
-            <Link to="/admin" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.8rem', borderRadius: '8px', color: 'hsl(var(--text-muted))', textDecoration: 'none', fontWeight: 500 }}>
-              <Shield size={18} /> Admin Center
-            </Link>
-          </nav>
-        </div>
-
-        <div>
-          <div style={{ borderTop: '1px solid hsl(var(--border-muted))', paddingTop: '1rem', marginBottom: '1rem' }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{username}</div>
-            <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-dim))' }}>Member</div>
-          </div>
-          <Button variant="secondary" onClick={handleLogout} style={{ width: '100%', fontSize: '0.85rem', padding: '0.5rem' }}>
-            <LogOut size={16} /> Logout
-          </Button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="main-content">
+      <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-10">
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2.5rem' }}>
           <div>
             <Link to="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'hsl(var(--text-muted))', textDecoration: 'none', fontSize: '0.9rem', marginBottom: '0.75rem' }}>
@@ -761,7 +729,7 @@ export default function ProjectDetails() {
             </div>
           </div>
         )}
-      </main>
+      </div>
 
       {/* Social Publishing Modal */}
       {publishingAsset && (
