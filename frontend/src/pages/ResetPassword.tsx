@@ -30,7 +30,7 @@ export default function ResetPassword() {
     }
 
     if (password !== confirmPassword) {
-      setError('Passkeys do not match.');
+      setError('Passwords do not match.');
       return;
     }
 
@@ -39,10 +39,10 @@ export default function ResetPassword() {
     try {
       await api.post('/api/auth/password-reset-confirm/', { token, password });
       setSuccess(true);
-      showToast('Passkey reset successful!', 'success');
+      showToast('Password reset successfully!', 'success');
     } catch (err: any) {
       console.error(err);
-      setError(err?.data?.error || 'Failed to update passkey. The link may have expired or is invalid.');
+      setError(err?.data?.error || 'Failed to update password. The link may have expired or is invalid.');
       showToast('Reset failed.', 'error');
     } finally {
       setLoading(false);
@@ -67,9 +67,9 @@ export default function ResetPassword() {
               <Sparkles size={24} className="text-white" />
             </motion.div>
             
-            <h2 className="text-2xl font-display font-bold tracking-tight text-white mb-2">Configure New Passkey</h2>
+            <h2 className="text-2xl font-display font-bold tracking-tight text-white mb-2">Set a New Password</h2>
             <p className="text-sm text-text-muted">
-              Choose a secure new authentication key for your terminal.
+              Choose a strong new password for your account.
             </p>
           </div>
 
@@ -99,16 +99,16 @@ export default function ResetPassword() {
                 <CheckCircle size={32} className="text-success" />
               </div>
               <p className="text-sm text-text-muted">
-                Your passkey has been successfully updated. You can now establish a connection with your new credentials.
+                Your password has been updated. You can now sign in with your new credentials.
               </p>
               <Button onClick={() => navigate('/login')} className="w-full mt-4 justify-center">
-                Initialize Connection
+                Sign In
               </Button>
             </motion.div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               <Input 
-                label="New Passkey"
+                label="New Password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -117,16 +117,16 @@ export default function ResetPassword() {
               />
 
               <Input 
-                label="Confirm Passkey"
+                label="Confirm New Password"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                placeholder="Repeat new passkey"
+                placeholder="Repeat new password"
               />
 
               <Button type="submit" loading={loading} className="w-full mt-2">
-                Save Authorization Configuration
+                Update Password
               </Button>
             </form>
           )}

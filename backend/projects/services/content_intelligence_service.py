@@ -11,8 +11,17 @@ Saves result to ContentIntelligenceRecord.
 """
 
 import logging
+from tenacity import retry, stop_after_attempt
 
 logger = logging.getLogger(__name__)
+
+
+@retry(stop=stop_after_attempt(3), reraise=True)
+def _run_intelligence_with_retry(provider, project_id, transcript_text):
+    return provider.run_content_intelligence(
+        project_id=project_id,
+        transcript_text=transcript_text,
+    )
 
 
 def run_content_intelligence(project, source_input, transcript_text: str) -> dict:
@@ -39,10 +48,7 @@ def run_content_intelligence(project, source_input, transcript_text: str) -> dic
     provider = get_ai_provider()
 
     try:
-        data = provider.run_content_intelligence(
-            project_id=project.id,
-            transcript_text=transcript_text,
-        )
+        data = _run_intelligence_with_retry(provider, project.id, transcript_text)
 
         if not data:
             return {}

@@ -351,37 +351,58 @@ def ingest_youtube_source(source_input) -> dict:
     transcript_text = None
     retrieval_method = None
     last_error = None
+    fallback_telemetry = []
+
+    def _record_telemetry(layer: str, method: str, err: Exception = None):
+        telemetry = {
+            "layer": layer,
+            "method": method,
+            "success": err is None,
+            "video_id": video_id,
+            "provider": "youtube",
+            "exception_type": type(err).__name__ if err else None,
+            "exception_message": str(err) if err else None,
+        }
+        fallback_telemetry.append(telemetry)
 
     # --- Layer 1 ---
     try:
         transcript_text, retrieval_method = _retrieve_via_transcript_api(video_id)
+        _record_telemetry("Layer 1", "youtube-transcript-api")
     except Exception as e:
         last_error = e
         logger.warning(f"[YouTubeIngestion] Layer 1 failed: {e}")
+        _record_telemetry("Layer 1", "youtube-transcript-api", e)
 
     # --- Layer 2 & 3 ---
     if not transcript_text:
         try:
             transcript_text, retrieval_method = _retrieve_via_ytdlp(url)
+            _record_telemetry("Layer 2/3", "yt-dlp")
         except Exception as e:
             last_error = e
             logger.warning(f"[YouTubeIngestion] Layer 2/3 failed: {e}")
+            _record_telemetry("Layer 2/3", "yt-dlp", e)
 
     # --- Layer 4 & 5: Audio Fallback ---
     if not transcript_text:
         try:
             transcript_text, retrieval_method = _retrieve_via_audio_transcription(url)
+            _record_telemetry("Layer 4/5", "audio_extraction")
         except Exception as e:
             last_error = e
             logger.warning(f"[YouTubeIngestion] Layer 4/5 audio fallback failed: {e}")
+            _record_telemetry("Layer 4/5", "audio_extraction", e)
 
     # --- Layer 6: Manual ---
     if not transcript_text:
         try:
             transcript_text, retrieval_method = _retrieve_from_manual_input(source_input)
+            _record_telemetry("Layer 6", "manual")
         except Exception as e:
             last_error = e
             logger.warning(f"[YouTubeIngestion] Layer 6 failed: {e}")
+            _record_telemetry("Layer 6", "manual", e)
 
     # --- ALL LAYERS FAILED ---
     if not transcript_text:
@@ -401,6 +422,7 @@ def ingest_youtube_source(source_input) -> dict:
                 "retrieval_timestamp": None,
                 "transcript_preview": "",
                 "failures": [str(last_error)],
+                "telemetry": fallback_telemetry
             }
         )
 
@@ -412,6 +434,7 @@ def ingest_youtube_source(source_input) -> dict:
         retrieval_method=retrieval_method,
         retrieval_timestamp=retrieval_timestamp,
     )
+    diagnostics["telemetry"] = fallback_telemetry
 
     # --- Persist diagnostics to source_input ---
     source_input.text_content = transcript_text

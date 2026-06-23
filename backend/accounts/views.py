@@ -137,10 +137,29 @@ class LoginInitiateView(views.APIView):
             user = authenticate(username=username, password=password)
             if not user:
                 return Response({'detail': 'Invalid username or password.'}, status=status.HTTP_401_UNAUTHORIZED)
-            
+
             if getattr(settings, 'EMAIL_VERIFICATION_REQUIRED', False) and not getattr(user, 'is_email_verified', True):
                 return Response({'detail': 'Please verify your email address before logging in.'}, status=status.HTTP_401_UNAUTHORIZED)
 
+            # --- TOTP MFA path ---
+            if user.is_mfa_enabled:
+                mfa_token = serializer.validated_data.get('mfa_token', '').strip()
+                if not mfa_token:
+                    return Response({'mfa_required': True}, status=status.HTTP_400_BAD_REQUEST)
+                from accounts.totp import verify_totp_code
+                if not verify_totp_code(user.mfa_secret, mfa_token):
+                    return Response(
+                        {'detail': 'Invalid Multi-Factor Authentication code.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                # TOTP verified — issue JWT immediately
+                refresh = RefreshToken.for_user(user)
+                return Response({
+                    'access': str(refresh.access_token),
+                    'refresh': str(refresh),
+                }, status=status.HTTP_200_OK)
+
+            # --- Email OTP path (MFA not enabled) ---
             try:
                 raw_otp = generate_otp_for_user(user, 'LOGIN')
                 send_otp_email(user, raw_otp, 'LOGIN')

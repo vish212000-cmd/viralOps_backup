@@ -331,7 +331,7 @@ export default function ProjectDetails() {
           const assetList = await api.get(`/api/orgs/${orgSlug}/projects/${projectId}/assets/`) as GeneratedAsset[];
           setAssets(assetList);
           if (proj.status === 'COMPLETED') {
-            showToast('Ingestion pipeline completed successfully!', 'success');
+            showToast('Your content is ready! Explore your generated assets.', 'success');
           }
         }
       }
@@ -479,7 +479,7 @@ export default function ProjectDetails() {
               <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>{project.name}</h1>
               <Badge status={project.status} />
             </div>
-            <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', marginTop: '0.25rem' }}>{project.description || 'Repurposing workspace for ingested content.'}</p>
+            <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', marginTop: '0.25rem' }}>{project.description || 'Your workspace for repurposing ingested content.'}</p>
           </div>
           
           {(project.status === 'COMPLETED' || project.status === 'PARTIAL_SUCCESS') && (
@@ -518,24 +518,24 @@ export default function ProjectDetails() {
         {project.status !== 'COMPLETED' && project.status !== 'PARTIAL_SUCCESS' && (!activeSource || activeSource.status !== 'FAILED') ? (
           <Card style={{ padding: '4rem 2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyItems: 'center' }}>
             <Loader2 size={48} className="loading-spinner" style={{ marginBottom: '1.5rem' }} />
-            <h3 style={{ fontSize: '1.3rem', marginBottom: '0.7rem' }}>Content Ingestion Pipeline Active</h3>
+            <h3 style={{ fontSize: '1.3rem', marginBottom: '0.7rem' }}>Your Content is Being Processed</h3>
             <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', maxWidth: '480px', lineHeight: 1.6, marginBottom: '2rem' }}>
-              We are transcribing, cleaning, and normalizing your text source. Then our AI orchestrator will extract hooks, captions, and platform short scripts.
+              We're transcribing, analyzing, and extracting the best moments from your content. Our AI will generate hooks, captions, and short scripts shortly.
             </p>
             <div style={{ display: 'flex', gap: '2rem', fontSize: '0.85rem', color: 'hsl(var(--text-dim))' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'hsl(var(--success))' }}><CheckCircle2 size={16} /> Source Received</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'hsl(var(--accent-primary))' }} className="pulsate"><RotateCw size={16} className="spin" /> Processing AI Pipeline</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'hsl(var(--accent-primary))' }} className="pulsate"><RotateCw size={16} className="spin" /> AI Working...</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>Assets Ready</div>
             </div>
           </Card>
         ) : activeSource && activeSource.status === 'FAILED' ? (
           <Card style={{ padding: '3rem', textAlign: 'center', borderColor: 'hsl(var(--danger) / 0.3)' }}>
             <AlertTriangle size={48} color="hsl(var(--danger))" style={{ marginBottom: '1rem' }} />
-            <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'hsl(var(--danger))' }}>Ingestion Pipeline Failed</h3>
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'hsl(var(--danger))' }}>Processing Failed</h3>
             <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
-              Error Log: {activeSource?.error_message || 'Unexpected worker timeout during execution.'}
+              There was an issue processing your content: {activeSource?.error_message || 'An unexpected error occurred.'}
             </p>
-            <Button onClick={() => navigate('/dashboard')}>Back to Projects</Button>
+            <Button onClick={() => navigate('/dashboard')}>Back to Dashboard</Button>
           </Card>
         ) : (
           <div>

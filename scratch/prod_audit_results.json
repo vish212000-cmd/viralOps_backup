@@ -1,0 +1,91 @@
+[
+  {
+    "name": "Dashboard",
+    "path": "/dashboard",
+    "sidebarWidth": 0,
+    "contentOffsetLeft": 441,
+    "contentWidth": 398,
+    "contentMarginLeft": "0px",
+    "contentPaddingLeft": "24px",
+    "headingOverlapsSidebar": false,
+    "headingRect": null,
+    "bodyOverflowX": "hidden",
+    "htmlOverflowX": "visible",
+    "screenshot": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Dashboard_audit.png"
+  },
+  {
+    "name": "Project Details",
+    "path": "/projects/1",
+    "sidebarWidth": 0,
+    "contentOffsetLeft": 0,
+    "contentWidth": 0,
+    "contentMarginLeft": "0px",
+    "contentPaddingLeft": "0px",
+    "headingOverlapsSidebar": false,
+    "headingRect": null,
+    "bodyOverflowX": "hidden",
+    "htmlOverflowX": "visible",
+    "screenshot": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Project_Details_audit.png"
+  },
+  {
+    "name": "Preferences",
+    "path": "/preferences",
+    "sidebarWidth": 80,
+    "contentOffsetLeft": 0,
+    "contentWidth": 1280,
+    "contentMarginLeft": "0px",
+    "contentPaddingLeft": "0px",
+    "headingOverlapsSidebar": true,
+    "headingRect": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 48
+    },
+    "bodyOverflowX": "hidden",
+    "htmlOverflowX": "visible",
+    "screenshot": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Preferences_audit.png"
+  },
+  {
+    "name": "Analytics",
+    "path": "/analytics",
+    "sidebarWidth": 80,
+    "contentOffsetLeft": 0,
+    "contentWidth": 1280,
+    "contentMarginLeft": "0px",
+    "contentPaddingLeft": "0px",
+    "headingOverlapsSidebar": false,
+    "headingRect": null,
+    "bodyOverflowX": "hidden",
+    "htmlOverflowX": "visible",
+    "screenshot": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Analytics_audit.png"
+  },
+  {
+    "name": "Billing",
+    "path": "/billing",
+    "sidebarWidth": 80,
+    "contentOffsetLeft": 0,
+    "contentWidth": 1280,
+    "contentMarginLeft": "0px",
+    "contentPaddingLeft": "0px",
+    "headingOverlapsSidebar": false,
+    "headingRect": null,
+    "bodyOverflowX": "hidden",
+    "htmlOverflowX": "visible",
+    "screenshot": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Billing_audit.png"
+  },
+  {
+    "name": "Admin Center",
+    "path": "/admin",
+    "sidebarWidth": 0,
+    "contentOffsetLeft": 0,
+    "contentWidth": 0,
+    "contentMarginLeft": "0px",
+    "contentPaddingLeft": "0px",
+    "headingOverlapsSidebar": false,
+    "headingRect": null,
+    "bodyOverflowX": "hidden",
+    "htmlOverflowX": "visible",
+    "screenshot": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Admin_Center_audit.png"
+  }
+]

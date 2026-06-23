@@ -9,7 +9,7 @@ from .models import (
     SourceInput, Project, ProcessingJob, TranscriptRecord, TranscriptSegment,
     GeneratedAsset, GeneratedAssetVersion, MemoryRecord, UsageEvent, Moment,
 )
-from .ai_service import generate_social_assets
+from .ai_service import generate_social_assets, generate_social_assets_batch
 
 logger = logging.getLogger(__name__)
 
@@ -33,38 +33,69 @@ def is_ai_quota_error(e):
 
 def _save_assets(project, assets_data, moment=None):
     """Persist generated assets to the database."""
-    for i, hook in enumerate(assets_data.get('hooks', [])):
+    if not isinstance(assets_data, dict):
+        logger.error(f"Invalid asset payload format: expected dict, got {type(assets_data)}")
+        return
+
+    hooks = assets_data.get('hooks')
+    if not isinstance(hooks, list):
+        hooks = []
+    for i, hook in enumerate(hooks):
         GeneratedAsset.objects.create(
             project=project, type='HOOK', platform='MULTI',
             content=hook, metadata={'index': i}, moment=moment
         )
-    for i, title in enumerate(assets_data.get('titles', [])):
+
+    titles = assets_data.get('titles')
+    if not isinstance(titles, list):
+        titles = []
+    for i, title in enumerate(titles):
         GeneratedAsset.objects.create(
             project=project, type='TITLE', platform='MULTI',
             content=title, metadata={'index': i}, moment=moment
         )
-    for i, cap in enumerate(assets_data.get('captions', [])):
+
+    captions = assets_data.get('captions')
+    if not isinstance(captions, list):
+        captions = []
+    for i, cap in enumerate(captions):
         GeneratedAsset.objects.create(
             project=project, type='CAPTION', platform='MULTI',
             content=cap, metadata={'index': i}, moment=moment
         )
-    for i, cta in enumerate(assets_data.get('ctas', [])):
+
+    ctas = assets_data.get('ctas')
+    if not isinstance(ctas, list):
+        ctas = []
+    for i, cta in enumerate(ctas):
         GeneratedAsset.objects.create(
             project=project, type='CTA', platform='MULTI',
             content=cta, metadata={'index': i}, moment=moment
         )
-    hashtag_text = " ".join(assets_data.get('hashtags', []))
+
+    hashtags = assets_data.get('hashtags')
+    if not isinstance(hashtags, list):
+        hashtags = []
+    hashtag_text = " ".join(hashtags)
     if hashtag_text:
         GeneratedAsset.objects.create(
             project=project, type='HASHTAG', platform='MULTI',
             content=hashtag_text, moment=moment
         )
-    for i, text in enumerate(assets_data.get('thumbnail_copy', [])):
+
+    thumbnail_copy = assets_data.get('thumbnail_copy')
+    if not isinstance(thumbnail_copy, list):
+        thumbnail_copy = []
+    for i, text in enumerate(thumbnail_copy):
         GeneratedAsset.objects.create(
             project=project, type='THUMBNAIL', platform='MULTI',
             content=text, metadata={'index': i}, moment=moment
         )
-    for script_obj in assets_data.get('scripts', []):
+
+    scripts = assets_data.get('scripts')
+    if not isinstance(scripts, list):
+        scripts = []
+    for script_obj in scripts:
         if isinstance(script_obj, dict):
             script_content = script_obj.get('script', '')
             script_platform = script_obj.get('platform', 'MULTI')
@@ -218,12 +249,13 @@ def process_source_input(self, source_input_id):
 
         # ── Step 3: Content Intelligence (non-fatal) ──────────────────────────
         current_step = 'Content Intelligence'
-        logger.info(f"[Task] Step 3/5 — Content intelligence")
+        logger.info("STEP 2 STARTED: Content Intelligence")
         try:
             from projects.services.content_intelligence_service import run_content_intelligence
             run_content_intelligence(project, source_input, normalized_text)
-            logger.info(f"[Task] Step 3/5 ✓ — Content intelligence complete")
+            logger.info("STEP 2 COMPLETED: Content Intelligence")
         except Exception as intel_err:
+            logger.exception("STEP 2 FAILED")
             if is_ai_quota_error(intel_err):
                 raise intel_err
             logger.warning(f"[Task] Step 3/5 ⚠ — Content intelligence failed (non-fatal): {intel_err}")
@@ -265,18 +297,31 @@ def process_source_input(self, source_input_id):
             )
             _save_assets(project, assets_data, moment=None)
         else:
-            # Generate assets for each top moment
+            # Generate assets for all top moments in ONE batch call
             GeneratedAsset.objects.filter(project=project).delete()
+            
+            moments_payload = []
             for moment in top_moments:
-                content_text = moment.excerpt if moment.excerpt else normalized_text[:3000]
-                assets_data = generate_social_assets(
-                    title=f"{source_input.title or source_input.file_name or 'Content'} — {moment.title}",
-                    source_type=source_input.type,
-                    content_text=content_text,
-                    memory_settings=memories,
-                    transcript_diagnostics=transcript_diagnostics,
-                )
-                _save_assets(project, assets_data, moment=moment)
+                moments_payload.append({
+                    "id": moment.id,
+                    "title": moment.title,
+                    "content_text": moment.excerpt if moment.excerpt else normalized_text[:3000]
+                })
+                
+            batch_results = generate_social_assets_batch(
+                title=source_input.title or source_input.file_name or 'Content',
+                source_type=source_input.type,
+                moments=moments_payload,
+                memory_settings=memories,
+                transcript_diagnostics=transcript_diagnostics,
+            )
+            
+            for moment in top_moments:
+                assets_data = batch_results.get(str(moment.id))
+                if assets_data:
+                    _save_assets(project, assets_data, moment=moment)
+                else:
+                    logger.warning(f"[Task] Missing batch generated assets for moment {moment.id}. Available keys: {list(batch_results.keys())}")
 
         logger.info(f"[Task] Step 5/5 ✓ — Asset generation complete")
 
@@ -293,6 +338,10 @@ def process_source_input(self, source_input_id):
                 pass
 
         # Mark everything completed
+        asset_count = GeneratedAsset.objects.filter(project=project).count()
+        if asset_count == 0:
+            raise ValueError("Asset generation failed: 0 assets generated for project.")
+
         job.status = 'COMPLETED'
         job.save()
         source_input.status = 'COMPLETED'
@@ -368,12 +417,13 @@ def process_source_input(self, source_input_id):
         source_input.error_message = str(e)
         source_input.save(update_fields=['status', 'error_message'])
 
+        import traceback
         job.status = 'FAILED'
         job.error_type = type(e).__name__
         job.error_message = str(e)
-        job.error_log = str(e)
+        job.error_log = traceback.format_exc()
         job.failing_step = current_step
-        job.save(update_fields=['status', 'error_log', 'error_type', 'error_message', 'failing_step', 'retry_count'])
+        job.save()
 
         if redis_client:
             try:
@@ -483,18 +533,35 @@ def retry_ai_generation(self, source_input_id):
             _save_assets(project, assets_data, moment=None)
         else:
             GeneratedAsset.objects.filter(project=project).delete()
+            
+            moments_payload = []
             for moment in top_moments:
-                content_text = moment.excerpt if moment.excerpt else normalized_text[:3000]
-                assets_data = generate_social_assets(
-                    title=f"{source_input.title or source_input.file_name or 'Content'} — {moment.title}",
-                    source_type=source_input.type,
-                    content_text=content_text,
-                    memory_settings=memories,
-                    transcript_diagnostics=transcript_diagnostics,
-                )
-                _save_assets(project, assets_data, moment=moment)
+                moments_payload.append({
+                    "id": moment.id,
+                    "title": moment.title,
+                    "content_text": moment.excerpt if moment.excerpt else normalized_text[:3000]
+                })
+                
+            batch_results = generate_social_assets_batch(
+                title=source_input.title or source_input.file_name or 'Content',
+                source_type=source_input.type,
+                moments=moments_payload,
+                memory_settings=memories,
+                transcript_diagnostics=transcript_diagnostics,
+            )
+            
+            for moment in top_moments:
+                assets_data = batch_results.get(str(moment.id))
+                if assets_data:
+                    _save_assets(project, assets_data, moment=moment)
+                else:
+                    logger.warning(f"[Retry Task] Missing batch generated assets for moment {moment.id}. Available keys: {list(batch_results.keys())}")
 
         # Mark Success
+        asset_count = GeneratedAsset.objects.filter(project=project).count()
+        if asset_count == 0:
+            raise ValueError("Asset generation failed: 0 assets generated for project.")
+
         project.status = 'COMPLETED'
         project.save()
         source_input.status = 'COMPLETED'

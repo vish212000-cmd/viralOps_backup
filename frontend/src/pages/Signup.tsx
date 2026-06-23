@@ -73,10 +73,10 @@ export default function Signup() {
             </motion.div>
             
             <h2 className="text-2xl font-display font-bold tracking-tight text-white mb-2">
-              Request Access
+              Create Account
             </h2>
             <p className="text-sm text-text-muted">
-              Initialize your content intelligence framework.
+              Start creating viral short-form content with AI.
             </p>
           </div>
 
@@ -98,7 +98,7 @@ export default function Signup() {
 
           <form onSubmit={handleSignup} className="flex flex-col gap-5">
             <Input 
-              label="Terminal Identity (Username)"
+              label="Username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -107,7 +107,7 @@ export default function Signup() {
             />
 
             <Input 
-              label="Secure Comm Link (Email)"
+              label="Email Address"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -116,7 +116,7 @@ export default function Signup() {
             />
 
             <Input 
-              label="Passkey"
+              label="Password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -125,7 +125,7 @@ export default function Signup() {
             />
 
             <Button type="submit" loading={loading} className="w-full mt-2" icon={<ArrowRight size={16} />}>
-              Initialize Account
+              Create Account
             </Button>
           </form>
 
@@ -136,11 +136,11 @@ export default function Signup() {
           </div>
 
           <Button type="button" variant="secondary" onClick={handleGoogleLogin} className="w-full">
-            <Sparkles size={16} /> Authenticate via Google
+            <Sparkles size={16} /> Continue with Google
           </Button>
 
           <p className="text-sm text-text-muted text-center mt-8">
-            Already authorized? <Link to="/login" className="text-white hover:text-accent-cyan font-semibold transition-colors">Establish Connection</Link>
+            Already have an account? <Link to="/login" className="text-white hover:text-accent-cyan font-semibold transition-colors">Sign In</Link>
           </p>
         </Card>
       </motion.div>
