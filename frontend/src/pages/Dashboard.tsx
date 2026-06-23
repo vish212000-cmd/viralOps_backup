@@ -65,7 +65,7 @@ export default function Dashboard() {
       setError('');
     } catch (err) {
       console.error(err);
-      setError('Failed to sync workspace database.');
+      setError('Failed to load projects.');
     } finally {
       setLoading(false);
     }
@@ -80,10 +80,10 @@ export default function Dashboard() {
       await loadWorkspaces();
       setNewOrgName('');
       setCreatingOrg(false);
-      showToast('New workspace established!', 'success');
+      showToast('Workspace created!', 'success');
     } catch (err) {
       console.error(err);
-      setError('Failed to create workspace partition.');
+      setError('Failed to create workspace.');
       showToast('Failed to create workspace.', 'error');
       setLoading(false);
     }
@@ -104,22 +104,22 @@ export default function Dashboard() {
     if (sourceType === 'YOUTUBE') {
       const isYoutube = sourceUrl.includes('youtube.com') || sourceUrl.includes('youtu.be');
       if (!sourceUrl || !isYoutube) {
-        setUrlError('A valid YouTube stream URL is required.');
+        setUrlError('Please enter a valid YouTube URL.');
         hasValError = true;
       }
     }
 
     if (sourceType === 'ARTICLE' && !sourceText.trim()) {
-      setTextError('Source text data is required for analysis.');
+      setTextError('Please enter some text to analyze.');
       hasValError = true;
     }
 
     if (['VIDEO', 'AUDIO', 'PDF'].includes(sourceType)) {
       if (!selectedFile) {
-        setFileError('Please attach a media file for ingestion.');
+        setFileError('Please attach a media file to upload.');
         hasValError = true;
       } else if (selectedFile.size > 52428800) {
-        setFileError('Payload exceeds the 50MB transfer limit.');
+        setFileError('File exceeds the 50MB size limit.');
         hasValError = true;
       }
     }
@@ -159,7 +159,7 @@ export default function Dashboard() {
       setSelectedFile(null);
       setShowNewProj(false);
       
-      showToast('Ingestion pipeline activated!', 'success');
+      showToast('Project created! AI is generating your assets.', 'success');
       loadProjects(currentOrg.slug);
     } catch (err: any) {
       console.error(err);
@@ -169,7 +169,7 @@ export default function Dashboard() {
       } else if (errors?.file) {
         showToast(errors.file[0] || errors.file, 'error');
       } else {
-        showToast('Failed to initialize ingestion.', 'error');
+        showToast('Failed to create project.', 'error');
       }
     } finally {
       setSubmitting(false);
@@ -199,7 +199,7 @@ export default function Dashboard() {
             <motion.div animate={{ rotate: -360 }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }} className="absolute inset-2 rounded-full border-b border-l border-accent-primary opacity-50" />
             <Sparkles size={32} className="text-white animate-pulse" />
           </div>
-          <p className="text-accent-cyan font-mono tracking-widest text-sm uppercase">Booting Mission Control...</p>
+          <p className="text-accent-cyan font-mono tracking-widest text-sm uppercase">Loading your dashboard...</p>
         </div>
       </div>
     );
@@ -217,29 +217,29 @@ export default function Dashboard() {
                 <HardDrive size={24} className="text-white" />
               </div>
               <h2 className="text-2xl font-display font-bold text-white">
-                {creatingOrg ? 'Initialize Workspace' : 'Setup Mission Control'}
+                {creatingOrg ? 'Create a Workspace' : 'Welcome to ViralOps'}
               </h2>
             </div>
             <p className="text-text-muted text-sm leading-relaxed mb-8">
-              Establish a new data partition to begin ingesting, processing, and repurposing content streams through the intelligence pipeline.
+              Create a workspace to start uploading content and generating social assets.
             </p>
             <form onSubmit={handleCreateOrg} className="flex flex-col gap-6">
               <Input 
-                label="Workspace Partition Name"
+                label="Workspace Name"
                 type="text"
                 value={newOrgName}
                 onChange={(e) => setNewOrgName(e.target.value)}
                 required
-                placeholder="e.g. ALPHA-PROTOCOL"
+                placeholder="e.g. My Agency"
                 className="font-mono"
               />
               <div className="flex gap-4 mt-2">
                 <Button type="submit" className="flex-1 justify-center">
-                  Allocate Partition
+                  Create Workspace
                 </Button>
                 {creatingOrg && (
                   <Button type="button" variant="ghost" onClick={() => setCreatingOrg(false)}>
-                    Abort
+                    Cancel
                   </Button>
                 )}
               </div>
@@ -260,19 +260,19 @@ export default function Dashboard() {
             <div>
               <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 mb-2">
                 <Activity size={20} className="text-accent-cyan" />
-                <span className="text-xs font-mono tracking-widest text-accent-cyan uppercase font-semibold">System Active</span>
+                <span className="text-xs font-mono tracking-widest text-accent-cyan uppercase font-semibold">All Systems Active</span>
               </motion.div>
               <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-4xl md:text-5xl font-display font-bold text-white tracking-tight">
-                Mission Control
+                Dashboard
               </motion.h1>
               <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-text-muted mt-2">
-                Monitoring content intelligence operations for <span className="text-white font-medium">{currentOrg?.name}</span>
+                Managing your content projects for <span className="text-white font-medium">{currentOrg?.name}</span>
               </motion.p>
             </div>
             
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }}>
               <Button onClick={() => setShowNewProj(true)} icon={<Plus size={18} />}>
-                Initialize Ingestion
+                Create Project
               </Button>
             </motion.div>
           </header>
@@ -301,12 +301,12 @@ export default function Dashboard() {
                   <div className="w-10 h-10 rounded-lg bg-accent-primary/20 flex items-center justify-center border border-accent-primary/30">
                     <Folder size={18} className="text-accent-primary" />
                   </div>
-                  <span className="text-[10px] font-mono tracking-widest text-text-dim uppercase">Total Streams</span>
+                  <span className="text-[10px] font-mono tracking-widest text-text-dim uppercase">Total Projects</span>
                 </div>
                 <div>
                   <div className="text-3xl font-display font-bold text-white">{projects.length}</div>
                   <div className="text-xs text-success mt-1 flex items-center gap-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" /> Active nodes
+                    <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" /> Active projects
                   </div>
                 </div>
               </Card>
@@ -319,13 +319,13 @@ export default function Dashboard() {
                   <div className="w-10 h-10 rounded-lg bg-accent-cyan/10 flex items-center justify-center border border-accent-cyan/20">
                     <Cpu size={18} className="text-accent-cyan" />
                   </div>
-                  <span className="text-[10px] font-mono tracking-widest text-text-dim uppercase">Compute Load</span>
+                  <span className="text-[10px] font-mono tracking-widest text-text-dim uppercase">AI Usage</span>
                 </div>
                 <div className="relative z-10">
                   <div className="text-3xl font-mono font-bold text-white flex items-baseline gap-2">
                     12 <span className="text-sm font-sans text-text-muted font-medium">/ 60</span>
                   </div>
-                  <div className="text-xs text-text-muted mt-1">Generations consumed</div>
+                  <div className="text-xs text-text-muted mt-1">Assets generated</div>
                   <div className="w-full h-1 bg-white/10 rounded-full mt-3 overflow-hidden">
                     <div className="h-full bg-accent-cyan w-[20%] rounded-full shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
                   </div>
@@ -339,11 +339,11 @@ export default function Dashboard() {
                   <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center border border-white/10">
                     <Shield size={18} className="text-text-muted" />
                   </div>
-                  <span className="text-[10px] font-mono tracking-widest text-text-dim uppercase">System Status</span>
+                  <span className="text-[10px] font-mono tracking-widest text-text-dim uppercase">Account Status</span>
                 </div>
                 <div>
                   <div className="text-lg font-display font-bold text-white">Nominal</div>
-                  <div className="text-xs text-text-muted mt-1">All pipelines operational</div>
+                  <div className="text-xs text-text-muted mt-1">All services running</div>
                 </div>
               </Card>
             </motion.div>
@@ -356,7 +356,7 @@ export default function Dashboard() {
             transition={{ delay: 0.4, type: "spring", stiffness: 200, damping: 20 }}
           >
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-display font-bold text-white">Active Data Streams</h2>
+              <h2 className="text-xl font-display font-bold text-white">Your Projects</h2>
               <div className="text-xs text-text-dim font-mono uppercase tracking-widest">Live Sync</div>
             </div>
             
@@ -365,12 +365,12 @@ export default function Dashboard() {
                 <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 mb-4 shadow-inner">
                   <Database size={24} className="text-text-dim" />
                 </div>
-                <h3 className="text-lg font-display font-bold text-white mb-2">No active streams detected</h3>
+                <h3 className="text-lg font-display font-bold text-white mb-2">No projects yet</h3>
                 <p className="text-sm text-text-muted max-w-md mb-8">
-                  Establish a new intelligence pipeline to begin transcribing, analyzing, and repurposing content.
+                  Create your first project to start transforming long-form content into viral social assets.
                 </p>
                 <Button onClick={() => setShowNewProj(true)} icon={<Plus size={16} />}>
-                  Initialize Pipeline
+                  Create Project
                 </Button>
               </Card>
             ) : (
@@ -395,7 +395,7 @@ export default function Dashboard() {
                             <Badge status={proj.status} className="shrink-0" />
                           </div>
                           <p className="text-sm text-text-muted line-clamp-3 leading-relaxed">
-                            {proj.description || 'No contextual metadata provided for this stream.'}
+                            {proj.description || 'No description provided for this project.'}
                           </p>
                         </div>
                         
@@ -409,7 +409,7 @@ export default function Dashboard() {
                           
                           <Link to={`/projects/${proj.id}`}>
                             <Button variant="ghost" className="px-4 py-2 text-xs hover:bg-accent-primary/10 hover:text-accent-primary">
-                              Enter Terminal
+                              Open Project
                             </Button>
                           </Link>
                         </div>
@@ -447,8 +447,8 @@ export default function Dashboard() {
                       <Cpu size={20} className="text-accent-cyan" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-display font-bold text-white">Initialize Pipeline</h2>
-                      <p className="text-xs text-text-muted font-mono uppercase tracking-widest mt-1">Configure ingestion parameters</p>
+                      <h2 className="text-xl font-display font-bold text-white">Create New Project</h2>
+                      <p className="text-xs text-text-muted uppercase tracking-widest mt-1">Upload your content to get started</p>
                     </div>
                   </div>
                   <button 
@@ -464,7 +464,7 @@ export default function Dashboard() {
                   <form id="ingestion-form" onSubmit={handleCreateProject} className="flex flex-col gap-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <Input 
-                        label="Pipeline Identity"
+                        label="Project Name"
                         type="text"
                         value={projName}
                         onChange={(e) => setProjName(e.target.value)}
@@ -474,7 +474,7 @@ export default function Dashboard() {
                         className="font-mono"
                       />
                       <Input 
-                        label="Source Nomenclature"
+                        label="Content Title"
                         type="text"
                         value={sourceTitle}
                         onChange={(e) => setSourceTitle(e.target.value)}
@@ -484,11 +484,11 @@ export default function Dashboard() {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-text-muted">Contextual Metadata <span className="text-xs font-normal text-text-dim">(Optional)</span></label>
+                      <label className="text-sm font-semibold text-text-muted">Description <span className="text-xs font-normal text-text-dim">(Optional)</span></label>
                       <textarea 
                         value={projDesc} 
                         onChange={(e) => setProjDesc(e.target.value)} 
-                        placeholder="Provide background parameters for the AI processing engine..."
+                        placeholder="Describe the content, tone, or audience for better AI results..."
                         rows={3}
                         className="w-full bg-white/5 border border-white/10 rounded-xl text-white px-4 py-3 font-sans outline-none transition-all placeholder:text-text-dim focus:bg-white/10 focus:border-accent-cyan/50 resize-none"
                       />
@@ -496,7 +496,7 @@ export default function Dashboard() {
 
                     <div className="pt-6 border-t border-white/5 mt-2">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-bold text-white uppercase tracking-widest font-mono">Payload Format</h3>
+                        <h3 className="text-sm font-bold text-white uppercase tracking-widest font-mono">Content Type</h3>
                       </div>
                       
                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
@@ -536,7 +536,7 @@ export default function Dashboard() {
                         {sourceType === 'YOUTUBE' && (
                           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                             <Input 
-                              label="Network Stream URL"
+                              label="YouTube URL"
                               type="url"
                               value={sourceUrl}
                               onChange={(e) => setSourceUrl(e.target.value)}
@@ -552,7 +552,7 @@ export default function Dashboard() {
                           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                             <div className="flex flex-col gap-2">
                               <label className="text-sm font-semibold text-text-muted">
-                                Binary Payload <span className="text-xs font-normal text-accent-cyan">(Max 50MB)</span>
+                                File Upload <span className="text-xs font-normal text-accent-cyan">(Max 50MB)</span>
                               </label>
                               <div className="relative group">
                                 <input 
@@ -594,7 +594,7 @@ export default function Dashboard() {
                         {sourceType === 'ARTICLE' && (
                           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                             <div className="flex flex-col gap-2">
-                              <label className="text-sm font-semibold text-text-muted">Raw Text Data</label>
+                              <label className="text-sm font-semibold text-text-muted">Your Text Content</label>
                               <textarea 
                                 value={sourceText} 
                                 onChange={(e) => setSourceText(e.target.value)} 
@@ -617,10 +617,10 @@ export default function Dashboard() {
                 
                 <div className="p-6 border-t border-white/5 bg-white/[0.02] flex items-center justify-end gap-4 shrink-0">
                   <Button type="button" variant="ghost" onClick={() => setShowNewProj(false)}>
-                    Abort
+                    Cancel
                   </Button>
                   <Button type="submit" form="ingestion-form" loading={submitting} icon={<PlayCircle size={16} />}>
-                    Execute Initialization
+                    Create Project
                   </Button>
                 </div>
               </Card>

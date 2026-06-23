@@ -95,12 +95,12 @@ export default function ForgotPassword() {
             </motion.div>
             
             <h2 className="text-2xl font-display font-bold tracking-tight text-white mb-2">
-              {success ? 'Passkey Restored' : (step === 'EMAIL' ? 'Recover Passkey' : 'Reset Passkey')}
+              {success ? 'Password Updated!' : (step === 'EMAIL' ? 'Forgot Password?' : 'Reset Your Password')}
             </h2>
             <p className="text-sm text-text-muted">
               {success 
-                ? 'Your access credentials have been securely updated.' 
-                : (step === 'EMAIL' ? 'Enter your comm link to receive an authorization code.' : `We've sent a 6-digit code to your terminal. Enter it below.`)}
+                ? 'Your password has been securely updated.' 
+                : (step === 'EMAIL' ? 'Enter your email address to receive a reset code.' : `We've sent a 6-digit code to your email. Enter it below.`)}
             </p>
           </div>
 
@@ -142,7 +142,7 @@ export default function ForgotPassword() {
               >
                 <form onSubmit={handleRequestOTP} className="flex flex-col gap-5">
                   <Input 
-                    label="Secure Comm Link (Email)"
+                    label="Email Address"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -176,7 +176,7 @@ export default function ForgotPassword() {
                   />
                   
                   <Input 
-                    label="New Passkey"
+                    label="New Password"
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
@@ -215,7 +215,7 @@ export default function ForgotPassword() {
 
           {!success && step === 'EMAIL' && (
             <p className="text-sm text-text-muted text-center mt-8">
-              Remembered your passkey? <Link to="/login" className="text-white hover:text-accent-cyan font-semibold transition-colors">Establish Connection</Link>
+              Remembered your password? <Link to="/login" className="text-white hover:text-accent-cyan font-semibold transition-colors">Sign In</Link>
             </p>
           )}
         </Card>

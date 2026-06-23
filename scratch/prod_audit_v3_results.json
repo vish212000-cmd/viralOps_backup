@@ -1,0 +1,88 @@
+{
+  "Dashboard": {
+    "httpStatus": 200,
+    "finalUrl": "https://www.vishnumadapakula.in/dashboard",
+    "reactMounted": true,
+    "appLayoutExists": false,
+    "sidebarExists": true,
+    "contentShellExists": true,
+    "consoleErrors": [],
+    "networkErrors": [],
+    "screenshotName": "PROD_V3_Dashboard.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_V3_Dashboard.png",
+    "reasonForZeroWidth": null
+  },
+  "Preferences": {
+    "httpStatus": 200,
+    "finalUrl": "https://www.vishnumadapakula.in/preferences",
+    "reactMounted": true,
+    "appLayoutExists": false,
+    "sidebarExists": true,
+    "contentShellExists": true,
+    "consoleErrors": [
+      "TypeError: (intermediate value).forEach is not a function\n    at w (https://www.vishnumadapakula.in/assets/Preferences-uZJvaM8N.js:1:538)"
+    ],
+    "networkErrors": [],
+    "screenshotName": "PROD_V3_Preferences.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_V3_Preferences.png",
+    "reasonForZeroWidth": null
+  },
+  "Analytics": {
+    "httpStatus": 200,
+    "finalUrl": "https://www.vishnumadapakula.in/analytics",
+    "reactMounted": true,
+    "appLayoutExists": false,
+    "sidebarExists": true,
+    "contentShellExists": true,
+    "consoleErrors": [],
+    "networkErrors": [],
+    "screenshotName": "PROD_V3_Analytics.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_V3_Analytics.png",
+    "reasonForZeroWidth": null
+  },
+  "Billing": {
+    "httpStatus": 200,
+    "finalUrl": "https://www.vishnumadapakula.in/billing",
+    "reactMounted": true,
+    "appLayoutExists": false,
+    "sidebarExists": true,
+    "contentShellExists": true,
+    "consoleErrors": [],
+    "networkErrors": [],
+    "screenshotName": "PROD_V3_Billing.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_V3_Billing.png",
+    "reasonForZeroWidth": null
+  },
+  "Project Details": {
+    "httpStatus": 200,
+    "finalUrl": "https://www.vishnumadapakula.in/projects/1",
+    "reactMounted": true,
+    "appLayoutExists": false,
+    "sidebarExists": false,
+    "contentShellExists": false,
+    "consoleErrors": [
+      "TypeError: O.filter is not a function\n    at M (https://www.vishnumadapakula.in/assets/ProjectDetails-DZVlv34c.js:1:12087)\n    at ko (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:47544)\n    at Sc (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:70100)\n    at zc (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:80379)\n    at Wu (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:115904)\n    at Vu (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:114965)\n    at Bu (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:114801)\n    at Ou (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:111648)\n    at xd (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:123241)\n    at MessagePort.te (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:2:10505)",
+      "ErrorBoundary caught an uncaught error: TypeError: O.filter is not a function\n    at M (https://www.vishnumadapakula.in/assets/ProjectDetails-DZVlv34c.js:1:12087)\n    at ko (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:47544)\n    at Sc (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:70100)\n    at zc (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:80379)\n    at Wu (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:115904)\n    at Vu (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:114965)\n    at Bu (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:114801)\n    at Ou (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:111648)\n    at xd (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:123241)\n    at MessagePort.te (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:2:10505) {componentStack: \n    at M (https://www.vishnumadapakula.in/assets/…dex-DiiL1Wb4.js:12:32374)\n    at qN (<anonymous>)}"
+    ],
+    "networkErrors": [],
+    "screenshotName": "PROD_V3_Project_Details.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_V3_Project_Details.png",
+    "reasonForZeroWidth": "selector failure"
+  },
+  "Admin Dashboard": {
+    "httpStatus": 200,
+    "finalUrl": "https://www.vishnumadapakula.in/admin",
+    "reactMounted": true,
+    "appLayoutExists": false,
+    "sidebarExists": false,
+    "contentShellExists": false,
+    "consoleErrors": [
+      "TypeError: Cannot read properties of undefined (reading 'active_jobs_count')\n    at w (https://www.vishnumadapakula.in/assets/AdminDashboard-BMHumOUa.js:1:4480)\n    at ko (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:47544)\n    at Sc (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:70100)\n    at zc (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:80379)\n    at Wu (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:115904)\n    at Vu (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:114965)\n    at Bu (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:114801)\n    at Ou (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:111648)\n    at xd (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:123241)\n    at MessagePort.te (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:2:10505)",
+      "ErrorBoundary caught an uncaught error: TypeError: Cannot read properties of undefined (reading 'active_jobs_count')\n    at w (https://www.vishnumadapakula.in/assets/AdminDashboard-BMHumOUa.js:1:4480)\n    at ko (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:47544)\n    at Sc (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:70100)\n    at zc (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:80379)\n    at Wu (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:115904)\n    at Vu (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:114965)\n    at Bu (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:114801)\n    at Ou (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:111648)\n    at xd (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:9:123241)\n    at MessagePort.te (https://www.vishnumadapakula.in/assets/index-DiiL1Wb4.js:2:10505) {componentStack: \n    at w (https://www.vishnumadapakula.in/assets/…dex-DiiL1Wb4.js:12:32374)\n    at qN (<anonymous>)}"
+    ],
+    "networkErrors": [],
+    "screenshotName": "PROD_V3_Admin_Dashboard.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_V3_Admin_Dashboard.png",
+    "reasonForZeroWidth": "selector failure"
+  }
+}
