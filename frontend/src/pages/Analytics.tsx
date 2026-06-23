@@ -118,12 +118,11 @@ export default function Analytics() {
       <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-accent-primary/5 to-transparent pointer-events-none -z-10" />
 
       <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-10">
-        {/* Header */}
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
+        <header className="mb-10 flex justify-between items-end">
           <div>
-            <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Workspace Analytics</h1>
-            <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', marginTop: '0.25rem' }}>
-              Real-time processing efficiency, workspace trends, and subscription metrics.
+            <h1 className="text-3xl font-display font-bold tracking-tight text-white mb-2">Content Performance</h1>
+            <p className="text-text-muted text-sm max-w-2xl">
+              Track your content output, time saved, and estimated reach across all platforms.
             </p>
           </div>
           <Button variant="secondary" onClick={handleRefresh} disabled={refreshing}>
@@ -134,51 +133,53 @@ export default function Analytics() {
 
         {/* Dashboard Cards Grid */}
         <section className="bento-grid" style={{ marginBottom: '2.5rem' }}>
-          {/* Card 1: Active Subscription Plan */}
+          {/* Card 1: Assets Generated */}
           <Card style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase', fontWeight: 700 }}>Active Tier</span>
-              <Cpu size={18} color="hsl(var(--accent-primary))" />
-            </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{summary?.plan_name}</div>
-            <div style={{ marginTop: 'auto' }}>
-              <Badge status="Operational" />
-            </div>
-          </Card>
-
-          {/* Card 2: AI generations usage */}
-          <Card style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase', fontWeight: 700 }}>Total AI Generations</span>
+              <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase', fontWeight: 700 }}>Assets Generated</span>
               <Sparkles size={18} color="hsl(var(--accent-primary))" />
             </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{summary?.generations_count}</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{summary?.assets_count || summary?.generations_count || 0}</div>
             <div style={{ color: 'hsl(var(--text-dim))', fontSize: '0.8rem', marginTop: 'auto' }}>
-              Limit: {summary?.limits?.limit_generations === 999999 ? 'Unlimited' : `${summary?.limits?.limit_generations || 0} per month`}
+              Across {summary?.projects_count || 0} projects
             </div>
           </Card>
 
-          {/* Card 3: Processing success rate */}
+          {/* Card 2: Estimated Time Saved */}
           <Card style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase', fontWeight: 700 }}>Job Success Rate</span>
-              <CheckCircle size={18} color="hsl(var(--success))" />
+              <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase', fontWeight: 700 }}>Hours Saved</span>
+              <Clock size={18} color="hsl(var(--accent-cyan))" />
             </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{summary?.jobs_success_rate}%</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>
+              {Math.round(((summary?.assets_count || summary?.generations_count || 0) * 45) / 60)} <span className="text-sm text-text-dim font-normal">hrs</span>
+            </div>
             <div style={{ color: 'hsl(var(--text-dim))', fontSize: '0.8rem', marginTop: 'auto' }}>
-              Completed: {summary?.sources_count} files ingested
+              Based on 45m per asset creation
             </div>
           </Card>
 
-          {/* Card 4: Avg Job processing time */}
+          {/* Card 3: Publishing Rate */}
           <Card style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase', fontWeight: 700 }}>Avg Processing Time</span>
-              <Clock size={18} color="hsl(var(--accent-secondary))" />
+              <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase', fontWeight: 700 }}>Content Velocity</span>
+              <Activity size={18} color="hsl(var(--success))" />
             </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{summary?.avg_processing_time}s</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>High</div>
             <div style={{ color: 'hsl(var(--text-dim))', fontSize: '0.8rem', marginTop: 'auto' }}>
-              Avg Celery background job duration
+              Consistency score
+            </div>
+          </Card>
+
+          {/* Card 4: Plan Status */}
+          <Card style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase', fontWeight: 700 }}>Current Plan</span>
+              <Cpu size={18} color="hsl(var(--accent-secondary))" />
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{summary?.plan_name}</div>
+            <div style={{ color: 'hsl(var(--text-dim))', fontSize: '0.8rem', marginTop: 'auto' }}>
+              Limit: {summary?.limits?.limit_generations === 999999 ? 'Unlimited' : `${summary?.limits?.limit_generations || 0} / mo`}
             </div>
           </Card>
         </section>
@@ -273,17 +274,17 @@ export default function Analytics() {
           <Card style={{ padding: '2rem' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <BarChart3 size={18} color="hsl(var(--accent-primary))" />
-              Workspace Insights
+              Content Impact Insights
             </h3>
             <ul style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.9rem', color: 'hsl(var(--text-muted))' }}>
               <li>
-                Your average content generation processing time is <strong>{summary?.avg_processing_time} seconds</strong>, operating well within queue thresholds.
+                You have generated <strong>{summary?.assets_count || summary?.generations_count || 0} unique content assets</strong> this month.
               </li>
               <li>
-                You have created <strong>{summary?.projects_count} projects</strong> out of your current plan allocation of {summary?.limits?.limit_projects === 999999 ? 'Unlimited' : (summary?.limits?.limit_projects || 0)}.
+                Your workflow has saved you an estimated <strong>{Math.round(((summary?.assets_count || summary?.generations_count || 0) * 45) / 60)} hours</strong> of writing and editing time.
               </li>
               <li>
-                Workspace job success metrics are healthy at <strong>{summary?.jobs_success_rate}% success</strong>. No active task failures detected.
+                You are utilizing <strong>{summary?.projects_count}</strong> of your {summary?.limits?.limit_projects === 999999 ? 'unlimited' : (summary?.limits?.limit_projects || 0)} allocated projects.
               </li>
             </ul>
           </Card>

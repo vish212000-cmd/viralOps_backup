@@ -387,9 +387,9 @@ export default function Billing() {
 
       <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-10">
         <header style={{ marginBottom: '2.5rem' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Workspace Billing Settings</h1>
+          <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Billing & Subscription</h1>
           <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', marginTop: '0.25rem' }}>
-            Manage organization subscription plans, quotas, and GST-compliant invoices.
+            Manage your subscription plan, track your content quotas, and access invoices.
           </p>
         </header>
 
@@ -406,27 +406,27 @@ export default function Billing() {
         <section className="bento-grid" style={{ marginBottom: '2.5rem' }}>
           <Card style={{ padding: '2rem' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1.25rem', color: 'hsl(var(--text-muted))', display: 'flex', justifyContent: 'space-between' }}>
-              <span>Projects Limit</span>
+              <span>Active Content Projects</span>
               <span style={{ color: 'hsl(var(--text-primary))' }}>{currentProjects} / {maxProjects === 999999 ? 'Unlimited' : maxProjects}</span>
             </h3>
             <div style={{ width: '100%', height: '8px', background: 'hsl(var(--border-muted))', borderRadius: '99px', overflow: 'hidden', marginBottom: '0.75rem' }}>
               <div style={{ width: `${maxProjects === 999999 ? 0 : projectsPercent}%`, height: '100%', background: 'linear-gradient(90deg, hsl(var(--accent-primary)), hsl(var(--accent-secondary)))', borderRadius: '99px' }} />
             </div>
             <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-dim))' }}>
-              Used to create workspaces and scope content pipeline projects.
+              Total projects available in your workspace.
             </p>
           </Card>
 
           <Card style={{ padding: '2rem' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1.25rem', color: 'hsl(var(--text-muted))', display: 'flex', justifyContent: 'space-between' }}>
-              <span>AI Content Generations</span>
+              <span>Content Assets Generated</span>
               <span style={{ color: 'hsl(var(--text-primary))' }}>{currentGenerations} / {maxGenerations === 999999 ? 'Unlimited' : maxGenerations}</span>
             </h3>
             <div style={{ width: '100%', height: '8px', background: 'hsl(var(--border-muted))', borderRadius: '99px', overflow: 'hidden', marginBottom: '0.75rem' }}>
               <div style={{ width: `${maxGenerations === 999999 ? 0 : gensPercent}%`, height: '100%', background: 'linear-gradient(90deg, hsl(var(--accent-primary)), hsl(var(--accent-secondary)))', borderRadius: '99px' }} />
             </div>
             <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-dim))' }}>
-              Generations and script regenerations consumed in the current calendar month.
+              Social assets (Hooks, Captions, Scripts) generated this month.
             </p>
           </Card>
         </section>
@@ -458,15 +458,15 @@ export default function Billing() {
                   <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 2rem 0', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.9rem', color: 'hsl(var(--text-muted))' }}>
                     <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <CheckCircle2 size={16} color="hsl(var(--success))" /> 
-                      {p.max_projects === 999999 ? 'Unlimited Projects' : `${p.max_projects} Projects Limit`}
+                      {p.max_projects === 999999 ? 'Unlimited Active Projects' : `Up to ${p.max_projects} Active Projects`}
                     </li>
                     <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <CheckCircle2 size={16} color="hsl(var(--success))" /> 
-                      {p.max_generations_per_month === 999999 ? 'Unlimited AI Content Generations' : `${p.max_generations_per_month} Generations/month`}
+                      {p.max_generations_per_month === 999999 ? 'Unlimited Content Assets' : `${p.max_generations_per_month} Content Assets / month`}
                     </li>
                     <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <CheckCircle2 size={16} color="hsl(var(--success))" /> 
-                      18% GST Compliant legal invoices
+                      Priority Email Support
                     </li>
                   </ul>
 

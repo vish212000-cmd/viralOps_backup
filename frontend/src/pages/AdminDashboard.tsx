@@ -9,7 +9,7 @@ import { Badge } from '../components/design/Badge';
 import { Card } from '../components/design/Card';
 import { 
   Sparkles, Loader2, RefreshCw, AlertOctagon, ShieldAlert, CheckCircle, 
-  Clock, Activity, Shield, Folder, Settings, LogOut, Terminal, Users, Layers, DollarSign
+  Clock, Activity, Shield, Folder, Settings, LogOut, Users, Layers, DollarSign
 } from 'lucide-react';
 
 interface SummaryStats {
@@ -234,7 +234,7 @@ export default function AdminDashboard() {
         {/* Job Queue trace */}
         <section style={{ marginBottom: '2.5rem' }}>
           <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Clock size={20} /> Celery Background Pipeline Trace (Last 50 Jobs)
+            <Clock size={20} /> Background Processing Trace (Last 50 Jobs)
           </h2>
           <Card style={{ padding: 0, overflowX: 'auto', borderRadius: '12px' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
@@ -290,7 +290,7 @@ export default function AdminDashboard() {
         {/* Audit Log Panel */}
         <section>
           <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Terminal size={20} /> System Audit Trail Actions
+            <Shield size={20} /> System Audit Trail Actions
           </h2>
           <Card style={{ padding: '1.5rem', maxHeight: '400px', overflowY: 'auto' }}>
             {logs.length === 0 ? (

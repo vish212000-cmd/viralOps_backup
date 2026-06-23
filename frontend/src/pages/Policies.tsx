@@ -44,7 +44,7 @@ export default function Policies({ page }: PoliciesProps) {
             },
             {
               heading: '2. Ingestion Files & AI Inputs',
-              content: 'Video, audio, YouTube URLs, and text content uploaded to ViralOps are processed through our AI transcription and generation pipelines. We do not sell or distribute your raw asset data to third parties.'
+              content: 'Video, audio, YouTube URLs, and text content uploaded to ViralOps are processed through our AI transcription and generation systems. We do not sell or distribute your raw asset data to third parties.'
             },
             {
               heading: '3. Cookie Policy',
@@ -63,7 +63,7 @@ export default function Policies({ page }: PoliciesProps) {
             },
             {
               heading: '2. Refunds',
-              content: 'Due to the operational costs associated with AI credits and transcription pipelines, subscription fees are non-refundable. If you believe you were charged in error, please submit an appeal containing your Razorpay Payment ID to support@viralops.com within 7 days of the charge.'
+              content: 'Due to the operational costs associated with AI credits and transcription processes, subscription fees are non-refundable. If you believe you were charged in error, please submit an appeal containing your Razorpay Payment ID to support@viralops.com within 7 days of the charge.'
             }
           ]
         };

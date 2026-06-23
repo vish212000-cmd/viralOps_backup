@@ -41,7 +41,7 @@ function TranscriptDiagnosticsPanel({ source, onUploadSuccess }: { source: Sourc
 
     try {
       await api.post(`/api/orgs/${api.orgSlug}/projects/${projectId}/sources/${source.id}/upload_transcript/`, formData);
-      showToast('Transcript uploaded successfully. Restarting pipeline...', 'success');
+      showToast('Transcript uploaded successfully. Restarting processing...', 'success');
       if (onUploadSuccess) onUploadSuccess();
     } catch (err) {
       console.error(err);
@@ -254,7 +254,7 @@ function TranscriptDiagnosticsPanel({ source, onUploadSuccess }: { source: Sourc
   );
 }
 
-type TabType = 'hooks' | 'titles' | 'captions' | 'scripts' | 'ctas' | 'hashtags' | 'source';
+type TabType = 'transcript' | 'moments' | 'assets' | 'analytics';
 
 export default function ProjectDetails() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -268,7 +268,7 @@ export default function ProjectDetails() {
   const [error, setError] = useState('');
   
   // Navigation Tabs
-  const [activeTab, setActiveTab] = useState<TabType>('hooks');
+  const [activeTab, setActiveTab] = useState<TabType>('transcript');
 
   // Editing state
   const [editingAssetId, setEditingAssetId] = useState<number | null>(null);
@@ -452,16 +452,6 @@ export default function ProjectDetails() {
     );
   }
 
-  const tabFilters = {
-    hooks: 'HOOK',
-    titles: 'TITLE',
-    captions: 'CAPTION',
-    scripts: 'SCRIPT',
-    ctas: 'CTA',
-    hashtags: 'HASHTAG',
-  };
-
-  const activeAssets = assets.filter(a => a.type === (tabFilters as any)[activeTab]);
   const activeSource = sources[0];
 
   return (
@@ -515,6 +505,34 @@ export default function ProjectDetails() {
           </div>
         )}
 
+        {/* Top Source Preview */}
+        {activeSource && project.status !== 'PROCESSING' && project.status !== 'FAILED' && (
+          <Card className="mb-8 p-6 flex flex-col md:flex-row gap-6 items-start border-white/5 bg-white/[0.02]">
+            <div className="flex-1 w-full">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-lg bg-accent-primary/20 flex items-center justify-center border border-accent-primary/30">
+                  <Video size={18} className="text-accent-primary" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white tracking-wide uppercase">Source Material</h3>
+                  <p className="text-xs text-text-muted">{activeSource.type}</p>
+                </div>
+              </div>
+              {activeSource.type === 'YOUTUBE' && activeSource.source_url && (
+                <a href={activeSource.source_url} target="_blank" rel="noopener noreferrer" className="text-accent-cyan text-sm flex items-center gap-2 hover:underline">
+                  <Link2 size={14} /> {activeSource.source_url}
+                </a>
+              )}
+            </div>
+            {activeSource.transcript_length && (
+              <div className="flex flex-col items-end justify-center h-full border-l border-white/10 pl-6 shrink-0">
+                <span className="text-2xl font-display font-bold text-white">{activeSource.transcript_length.toLocaleString()}</span>
+                <span className="text-xs text-text-dim uppercase tracking-widest">Characters Extracted</span>
+              </div>
+            )}
+          </Card>
+        )}
+
         {project.status !== 'COMPLETED' && project.status !== 'PARTIAL_SUCCESS' && (!activeSource || activeSource.status !== 'FAILED') ? (
           <Card style={{ padding: '4rem 2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyItems: 'center' }}>
             <Loader2 size={48} className="loading-spinner" style={{ marginBottom: '1.5rem' }} />
@@ -542,13 +560,10 @@ export default function ProjectDetails() {
             {/* Navigation Tabs */}
             <div style={{ display: 'flex', borderBottom: '1px solid hsl(var(--border-muted))', marginBottom: '2rem', overflowX: 'auto', gap: '1rem' }}>
               {[
-                { id: 'hooks', label: 'Hooks Opener' },
-                { id: 'titles', label: 'Clickable Titles' },
-                { id: 'captions', label: 'Social Captions' },
-                { id: 'scripts', label: 'Short Scripts' },
-                { id: 'ctas', label: 'CTAs' },
-                { id: 'hashtags', label: 'Hashtags' },
-                { id: 'source', label: 'Source Material' },
+                { id: 'transcript', label: 'Transcript' },
+                { id: 'moments', label: 'Key Moments' },
+                { id: 'assets', label: 'Generated Assets' },
+                { id: 'analytics', label: 'Analytics' },
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -575,30 +590,10 @@ export default function ProjectDetails() {
 
             {/* Tab content panel */}
             <div style={{ minHeight: '400px' }}>
-              {activeTab === 'source' ? (
+              {activeTab === 'transcript' ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  {/* Transcript Diagnostics Panel — YouTube only */}
-                  {/* Transcript Diagnostics Panel — YouTube only */}
                   {activeSource && <TranscriptDiagnosticsPanel source={activeSource} onUploadSuccess={loadProjectDetails} />}
 
-                  {/* Source metadata */}
-                  {activeSource?.type === 'YOUTUBE' && activeSource.source_url && (
-                    <Card style={{ padding: '1.25rem 1.5rem' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'hsl(var(--text-dim))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Video URL</div>
-                        <a
-                          href={activeSource.source_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'hsl(var(--accent-primary))', textDecoration: 'none', fontSize: '0.9rem', wordBreak: 'break-all' }}
-                        >
-                          {activeSource.source_url} <ExternalLink size={13} />
-                        </a>
-                      </div>
-                    </Card>
-                  )}
-
-                  {/* Full content preview */}
                   <Card style={{ padding: '2rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid hsl(var(--border-muted))', paddingBottom: '0.75rem' }}>
                       <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -613,116 +608,152 @@ export default function ProjectDetails() {
                     </div>
                   </Card>
                 </div>
-              ) : (
+              ) : activeTab === 'moments' ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  {activeAssets.length === 0 ? (
+                  <Card style={{ padding: '3rem', textAlign: 'center', color: 'hsl(var(--text-dim))' }}>
+                    <Sparkles size={32} className="mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg text-white font-bold mb-2">Moments Extraction</h3>
+                    <p>Key moments from your video will appear here.</p>
+                  </Card>
+                </div>
+              ) : activeTab === 'analytics' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  <Card style={{ padding: '3rem', textAlign: 'center', color: 'hsl(var(--text-dim))' }}>
+                    <Activity size={32} className="mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg text-white font-bold mb-2">Content Analytics</h3>
+                    <p>Analytics will be available once assets are published to social platforms.</p>
+                  </Card>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+                  {assets.length === 0 ? (
                     <Card style={{ padding: '3rem', textAlign: 'center', color: 'hsl(var(--text-dim))' }}>
-                      No assets found for this category.
+                      No assets generated yet.
                     </Card>
                   ) : (
-                    activeAssets.map(asset => (
-                      <Card key={asset.id} style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                        
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid hsl(var(--border-muted))', paddingBottom: '0.75rem' }}>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'hsl(var(--accent-primary))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            {asset.type} ({asset.platform})
-                          </span>
-                          
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <Button 
-                              variant="secondary"
-                              onClick={() => handleToggleFavorite(asset.id)}
-                              style={{ padding: '0.4rem', border: 'none' }}
-                            >
-                              <Star size={16} fill={asset.is_favorite ? 'hsl(var(--warning))' : 'none'} color={asset.is_favorite ? 'hsl(var(--warning))' : 'currentColor'} />
-                            </Button>
-                            <Button 
-                              variant="secondary"
-                              onClick={() => handleRegenerate(asset.id)}
-                              loading={regeneratingId === asset.id}
-                              style={{ padding: '0.4rem', border: 'none' }}
-                            >
-                              <RotateCw size={16} className={regeneratingId === asset.id ? 'spin' : ''} />
-                            </Button>
-                            <Button 
-                              variant="secondary"
-                              onClick={() => setPublishingAsset(asset)}
-                              style={{ padding: '0.4rem', border: 'none' }}
-                              title="Publish Asset"
-                            >
-                              <Share2 size={16} />
-                            </Button>
-                          </div>
-                        </div>
+                    ['TITLE', 'HOOK', 'CAPTION', 'SCRIPT', 'CTA', 'HASHTAG'].map(type => {
+                      const typeAssets = assets.filter(a => a.type === type);
+                      if (typeAssets.length === 0) return null;
+                      
+                      const typeTitles: Record<string, string> = {
+                        'TITLE': 'Clickable Titles',
+                        'HOOK': 'Video Hooks',
+                        'CAPTION': 'Social Captions',
+                        'SCRIPT': 'Short Scripts',
+                        'CTA': 'Call to Actions',
+                        'HASHTAG': 'Hashtags'
+                      };
+                      
+                      return (
+                        <div key={type} className="flex flex-col gap-4">
+                          <h3 className="text-lg font-display font-bold text-white border-b border-white/10 pb-2">{typeTitles[type]}</h3>
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            {typeAssets.map(asset => (
+                              <Card key={asset.id} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: 'hsl(var(--bg-elevated))' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'hsl(var(--accent-primary))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    {asset.platform}
+                                  </span>
+                                  
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <Button 
+                                      variant="ghost"
+                                      onClick={() => handleToggleFavorite(asset.id)}
+                                      style={{ padding: '0.4rem', border: 'none' }}
+                                    >
+                                      <Star size={14} fill={asset.is_favorite ? 'hsl(var(--warning))' : 'none'} color={asset.is_favorite ? 'hsl(var(--warning))' : 'currentColor'} />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost"
+                                      onClick={() => handleRegenerate(asset.id)}
+                                      loading={regeneratingId === asset.id}
+                                      style={{ padding: '0.4rem', border: 'none' }}
+                                    >
+                                      <RotateCw size={14} className={regeneratingId === asset.id ? 'spin' : ''} />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost"
+                                      onClick={() => setPublishingAsset(asset)}
+                                      style={{ padding: '0.4rem', border: 'none' }}
+                                      title="Publish Asset"
+                                    >
+                                      <Share2 size={14} />
+                                    </Button>
+                                  </div>
+                                </div>
 
-                        {editingAssetId === asset.id ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            <textarea
-                              value={editingContent}
-                              onChange={(e) => setEditingContent(e.target.value)}
-                              rows={asset.type === 'SCRIPT' || asset.type === 'CAPTION' ? 8 : 2}
-                              style={{ fontSize: '0.95rem', lineHeight: 1.6 }}
-                            />
-                            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                              <Button variant="secondary" onClick={() => setEditingAssetId(null)}>Cancel</Button>
-                              <Button onClick={() => handleSaveEdit(asset.id)} loading={savingAssetId === asset.id}>
-                                <Save size={14} /> Save Change
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div>
-                            <div style={{ whiteSpace: 'pre-wrap', fontSize: '1rem', lineHeight: 1.6, color: 'hsl(var(--text-primary))', background: 'hsl(var(--bg-main) / 0.3)', padding: '1rem', borderRadius: '8px', border: '1px solid hsl(var(--border-muted) / 0.5)' }}>
-                              {asset.content}
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
-                              <Button variant="secondary" onClick={() => handleStartEdit(asset)} style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
-                                <Edit2 size={12} /> Edit Asset
-                              </Button>
-                              
-                              {asset.versions && asset.versions.length > 0 && (
-                                <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-dim))', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                  <History size={12} /> {asset.versions.length} edits saved
-                                </span>
-                              )}
-                            </div>
-
-                            {asset.publish_records && asset.publish_records.length > 0 && (
-                              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px dashed hsl(var(--border-muted) / 0.5)' }}>
-                                <h4 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--text-muted))', marginBottom: '0.5rem' }}>Publication History</h4>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                                  {asset.publish_records.map(rec => (
-                                    <div key={rec.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', background: 'hsl(var(--bg-main) / 0.5)', padding: '0.4rem 0.6rem', borderRadius: '6px' }}>
-                                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                        <span style={{ fontWeight: 600 }}>{rec.platform}</span>
-                                        <span style={{ 
-                                          fontSize: '0.7rem', 
-                                          padding: '0.1rem 0.4rem', 
-                                          borderRadius: '4px',
-                                          background: rec.status === 'SUCCESS' ? 'hsl(var(--success) / 0.15)' : 'hsl(var(--danger) / 0.15)',
-                                          color: rec.status === 'SUCCESS' ? 'hsl(var(--success))' : 'hsl(var(--danger))'
-                                        }}>
-                                          {rec.status}
+                                {editingAssetId === asset.id ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    <textarea
+                                      value={editingContent}
+                                      onChange={(e) => setEditingContent(e.target.value)}
+                                      rows={asset.type === 'SCRIPT' || asset.type === 'CAPTION' ? 8 : 3}
+                                      style={{ fontSize: '0.95rem', lineHeight: 1.6, background: 'hsl(var(--bg-main) / 0.5)', padding: '0.5rem', borderRadius: '6px', border: '1px solid hsl(var(--border-muted))', color: 'hsl(var(--text-primary))' }}
+                                    />
+                                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                      <Button variant="ghost" onClick={() => setEditingAssetId(null)}>Cancel</Button>
+                                      <Button onClick={() => handleSaveEdit(asset.id)} loading={savingAssetId === asset.id}>
+                                        <Save size={14} /> Save
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.95rem', lineHeight: 1.5, color: 'hsl(var(--text-primary))' }}>
+                                      {asset.content}
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+                                      <Button variant="ghost" onClick={() => handleStartEdit(asset)} style={{ padding: '0.4rem 0', fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>
+                                        <Edit2 size={12} className="mr-1" /> Edit
+                                      </Button>
+                                      
+                                      {asset.versions && asset.versions.length > 0 && (
+                                        <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-dim))', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                          <History size={12} /> {asset.versions.length} edits
                                         </span>
-                                      </span>
-                                      {rec.status === 'SUCCESS' && rec.published_url && (
-                                        <a href={rec.published_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', color: 'hsl(var(--accent-primary))', textDecoration: 'none' }}>
-                                          View Post <ExternalLink size={12} />
-                                        </a>
-                                      )}
-                                      {rec.status === 'FAILED' && (
-                                        <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{rec.error_message}</span>
                                       )}
                                     </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
 
-                      </Card>
-                    ))
+                                    {asset.publish_records && asset.publish_records.length > 0 && (
+                                      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px dashed hsl(var(--border-muted) / 0.5)' }}>
+                                        <h4 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--text-muted))', marginBottom: '0.5rem' }}>Publication History</h4>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                          {asset.publish_records.map(rec => (
+                                            <div key={rec.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', background: 'hsl(var(--bg-main) / 0.5)', padding: '0.4rem 0.6rem', borderRadius: '6px' }}>
+                                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                <span style={{ fontWeight: 600 }}>{rec.platform}</span>
+                                                <span style={{ 
+                                                  fontSize: '0.7rem', 
+                                                  padding: '0.1rem 0.4rem', 
+                                                  borderRadius: '4px',
+                                                  background: rec.status === 'SUCCESS' ? 'hsl(var(--success) / 0.15)' : 'hsl(var(--danger) / 0.15)',
+                                                  color: rec.status === 'SUCCESS' ? 'hsl(var(--success))' : 'hsl(var(--danger))'
+                                                }}>
+                                                  {rec.status}
+                                                </span>
+                                              </span>
+                                              {rec.status === 'SUCCESS' && rec.published_url && (
+                                                <a href={rec.published_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', color: 'hsl(var(--accent-primary))', textDecoration: 'none' }}>
+                                                  View Post <ExternalLink size={12} />
+                                                </a>
+                                              )}
+                                              {rec.status === 'FAILED' && (
+                                                <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{rec.error_message}</span>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               )}
