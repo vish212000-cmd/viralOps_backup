@@ -39,10 +39,11 @@ const Signup = lazyImportWithRecovery(() => import('./pages/Signup'), 'Signup');
 const Dashboard = lazyImportWithRecovery(() => import('./pages/Dashboard'), 'Dashboard');
 const ProjectDetails = lazyImportWithRecovery(() => import('./pages/ProjectDetails'), 'ProjectDetails');
 const MomentsWorkspace = lazyImportWithRecovery(() => import('./pages/MomentsWorkspace'), 'MomentsWorkspace');
-const Preferences = lazyImportWithRecovery(() => import('./pages/Preferences'), 'Preferences');
-const AdminDashboard = lazyImportWithRecovery(() => import('./pages/AdminDashboard'), 'AdminDashboard');
+const Templates = lazyImportWithRecovery(() => import('./pages/Templates'), 'Templates');
+const Settings = lazyImportWithRecovery(() => import('./pages/AdminDashboard'), 'Settings'); // Reusing AdminDashboard as placeholder for unified Settings
 const Billing = lazyImportWithRecovery(() => import('./pages/Billing'), 'Billing');
 const Analytics = lazyImportWithRecovery(() => import('./pages/Analytics'), 'Analytics');
+const ContentLibrary = lazyImportWithRecovery(() => import('./pages/Dashboard'), 'ContentLibrary'); // Placeholder
 const Policies = lazyImportWithRecovery(() => import('./pages/Policies'), 'Policies');
 const GoogleCallback = lazyImportWithRecovery(() => import('./pages/GoogleCallback'), 'GoogleCallback');
 const VerifyEmail = lazyImportWithRecovery(() => import('./pages/VerifyEmail'), 'VerifyEmail');
@@ -118,12 +119,13 @@ function App() {
                   </PrivateRoute>
                 }>
                   <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/content" element={<ContentLibrary />} />
+                  <Route path="/templates" element={<Templates />} />
+                  <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/billing" element={<Billing />} />
+                  <Route path="/settings" element={<Settings />} />
                   <Route path="/projects/:projectId" element={<ProjectDetails />} />
                   <Route path="/projects/:projectId/moments" element={<MomentsWorkspace />} />
-                  <Route path="/preferences" element={<Preferences />} />
-                  <Route path="/billing" element={<Billing />} />
-                  <Route path="/analytics" element={<Analytics />} />
-                  <Route path="/admin" element={<AdminDashboard />} />
                 </Route>
               </Routes>
             </Suspense>

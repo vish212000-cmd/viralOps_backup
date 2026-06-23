@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from './design/Button';
 import { cn } from '../utils/cn';
 import { 
-  Sparkles, Folder, Settings, BarChart2, CreditCard, Shield, LogOut, ChevronRight, X
+  Sparkles, LayoutDashboard, Video, Palette, BarChart2, Settings, ChevronRight, X, CreditCard
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -42,11 +42,12 @@ export default function Sidebar({ isMobileOpen = false, onClose = () => {} }: Si
   };
 
   const navItems = [
-    { name: 'Projects', path: '/dashboard', icon: Folder },
-    { name: 'Brand Voice', path: '/preferences', icon: Settings },
+    { name: 'Home', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Content', path: '/content', icon: Video },
+    { name: 'Templates', path: '/templates', icon: Palette },
     { name: 'Analytics', path: '/analytics', icon: BarChart2 },
     { name: 'Billing', path: '/billing', icon: CreditCard },
-    { name: 'Admin Center', path: '/admin', icon: Shield },
+    { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
   // Animation values based on screen size responsive rules

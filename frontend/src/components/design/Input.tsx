@@ -26,12 +26,12 @@ export function Input({ label, error, containerClassName, id, className, require
       <div className="relative">
         <input 
           id={inputId} 
-          className={cn(
-            "w-full bg-white/5 border border-white/10 rounded-xl text-white px-4 py-3 font-sans outline-none transition-all placeholder:text-text-dim",
-            "focus:bg-white/10 focus:border-accent-cyan/50 focus-visible:ring-2 focus-visible:ring-accent-cyan/50",
-            error && "border-danger focus:border-danger focus-visible:ring-danger/50 bg-danger/5",
-            className
-          )}
+            className={cn(
+              "w-full bg-white/[0.02] border border-white/[0.08] rounded-[6px] text-white px-4 py-3 font-sans outline-none transition-all duration-300 placeholder:text-text-dim",
+              "focus:bg-white/[0.04] focus:border-accent-primary focus-visible:ring-1 focus-visible:ring-accent-primary",
+              error && "border-danger focus:border-danger focus-visible:ring-danger bg-danger/5",
+              className
+            )}
           onFocus={(e) => {
             setFocused(true);
             props.onFocus?.(e);

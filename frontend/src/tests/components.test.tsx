@@ -137,9 +137,9 @@ describe('Login Page', () => {
       </MemoryRouter>
     );
 
-    const usernameInput = screen.getByLabelText(/Terminal Identity/i);
-    const passwordInput = screen.getByLabelText(/Passkey/i);
-    const submitButton = screen.getByRole('button', { name: /Initialize Connection/i });
+    const usernameInput = screen.getByLabelText(/Email Address/i);
+    const passwordInput = screen.getByLabelText(/Password/i);
+    const submitButton = screen.getByRole('button', { name: /Sign In/i });
 
     expect(usernameInput).toBeInTheDocument();
     expect(passwordInput).toBeInTheDocument();
@@ -163,10 +163,10 @@ describe('Dashboard Page', () => {
       </MemoryRouter>
     );
 
-    // Wait for the loader to clear and verify mock workspace views are present
-    const header = await screen.findByText('Mission Control');
+    // The user should now be redirected to the dashboard which says Home
+    const header = await screen.findByText('Home');
     expect(header).toBeInTheDocument();
-    expect(screen.getByText('Active Data Streams')).toBeInTheDocument();
+    expect(screen.getByText('Your Content')).toBeInTheDocument();
   });
 });
 
