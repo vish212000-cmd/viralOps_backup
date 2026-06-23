@@ -40,3 +40,25 @@ def generate_social_assets(
         templates=templates,
         transcript_diagnostics=transcript_diagnostics,
     )
+
+def generate_social_assets_batch(
+    title: str,
+    source_type: str,
+    moments: list[dict],
+    memory_settings: dict = None,
+    templates=None,
+    transcript_diagnostics: dict = None,
+) -> dict:
+    """
+    Generate social-ready assets for multiple moments in a single API call.
+    Delegates to the active AI provider.
+    """
+    provider = get_ai_provider()
+    return provider.generate_social_assets_batch(
+        title=title,
+        source_type=source_type,
+        moments=moments,
+        memory_settings=memory_settings,
+        templates=templates,
+        transcript_diagnostics=transcript_diagnostics,
+    )

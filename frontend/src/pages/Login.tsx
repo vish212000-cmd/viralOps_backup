@@ -125,8 +125,8 @@ export default function Login() {
             </h2>
             <p className="text-sm text-text-muted">
               {step === 'CREDENTIALS' 
-                ? 'Authenticate to access your intelligence command center.' 
-                : 'Enter the 6-digit verification code sent to your terminal.'}
+                ? 'Sign in to continue to your ViralOps workspace.' 
+                : 'Enter the 6-digit code we sent to your email address.'}
             </p>
           </div>
 
@@ -157,7 +157,7 @@ export default function Login() {
               >
                 <form onSubmit={handleCredentialsSubmit} className="flex flex-col gap-5">
                   <Input 
-                    label="Terminal Identity"
+                    label="Username"
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -167,7 +167,7 @@ export default function Login() {
 
                   <div className="flex flex-col gap-1">
                     <Input 
-                      label="Passkey"
+                      label="Password"
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -175,13 +175,13 @@ export default function Login() {
                     />
                     <div className="flex justify-end mt-1">
                       <Link to="/forgot-password" className="text-xs font-semibold text-accent-cyan hover:text-accent-primary transition-colors">
-                        Recover Passkey
+                        Forgot Password?
                       </Link>
                     </div>
                   </div>
 
                   <Button type="submit" loading={loading} className="w-full mt-2" icon={<ArrowRight size={16} />}>
-                    Initialize Connection
+                    Sign In
                   </Button>
                 </form>
 
@@ -192,7 +192,7 @@ export default function Login() {
                 </div>
 
                 <Button type="button" variant="secondary" onClick={handleGoogleLogin} className="w-full">
-                  <Sparkles size={16} /> Authenticate via Google
+                  <Sparkles size={16} /> Continue with Google
                 </Button>
               </motion.div>
             ) : (
@@ -237,7 +237,7 @@ export default function Login() {
                       onClick={() => setStep('CREDENTIALS')}
                       className="text-xs text-text-muted hover:text-white transition-colors"
                     >
-                      Abort connection attempt
+                      Back to Sign In
                     </button>
                   </div>
                 </form>
@@ -247,7 +247,7 @@ export default function Login() {
 
           {step === 'CREDENTIALS' && (
             <p className="text-sm text-text-muted text-center mt-8">
-              No authorization found? <Link to="/signup" className="text-white hover:text-accent-cyan font-semibold transition-colors">Request Access</Link>
+              Don't have an account? <Link to="/signup" className="text-white hover:text-accent-cyan font-semibold transition-colors">Create Account</Link>
             </p>
           )}
         </Card>

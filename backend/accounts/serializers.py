@@ -21,6 +21,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 class LoginInitiateSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
+    mfa_token = serializers.CharField(required=False, allow_blank=True)
 
 class LoginVerifyOTPSerializer(serializers.Serializer):
     username = serializers.CharField()

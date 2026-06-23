@@ -559,25 +559,68 @@ class MomentViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        import logging
+        import redis
+        from django.conf import settings
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            redis_client = redis.Redis.from_url(
+                getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0')
+            )
+        except Exception as e:
+            logger.warning(f"Could not connect to Redis for generate_assets lock check: {e}")
+            redis_client = None
+
+        lock_key = f"project_ai_generation_{project.id}"
+        if redis_client:
+            try:
+                if redis_client.get(lock_key):
+                    return Response(
+                        {'error': 'AI generation is currently running for this project. Please wait.'},
+                        status=status.HTTP_409_CONFLICT
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to check Redis lock in generate_assets: {e}")
+
         from .ai_service import generate_social_assets
         try:
+            # Ensure idempotency: remove previous assets generated for this specific moment
+            # We check both the ForeignKey and the legacy metadata tag
+            from django.db.models import Q
+            from .models import GeneratedAsset
+            GeneratedAsset.objects.filter(
+                Q(project=project) & (Q(moment=moment) | Q(metadata__moment_id=moment.id))
+            ).delete()
+
             assets_data = generate_social_assets(
                 title=moment.title,
                 source_type='ARTICLE',  # treat excerpt as article — no YouTube gate
                 content_text=moment.excerpt,
             )
+            if not isinstance(assets_data, dict):
+                return Response({'error': 'Invalid asset payload format: expected dict'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
             # Save generated assets tagged to project
             created = []
-            for hook in assets_data.get('hooks', []):
+            hooks = assets_data.get('hooks')
+            if not isinstance(hooks, list):
+                hooks = []
+            for hook in hooks:
                 a = GeneratedAsset.objects.create(
                     project=project, type='HOOK', platform='MULTI',
-                    content=hook, metadata={'moment_id': moment.id}
+                    content=hook, moment=moment, metadata={'moment_id': moment.id}
                 )
                 created.append({'type': 'HOOK', 'content': hook, 'id': a.id})
-            for cap in assets_data.get('captions', []):
+
+            captions = assets_data.get('captions')
+            if not isinstance(captions, list):
+                captions = []
+            for cap in captions:
                 a = GeneratedAsset.objects.create(
                     project=project, type='CAPTION', platform='MULTI',
-                    content=cap, metadata={'moment_id': moment.id}
+                    content=cap, moment=moment, metadata={'moment_id': moment.id}
                 )
                 created.append({'type': 'CAPTION', 'content': cap, 'id': a.id})
             return Response({'assets': created, 'moment_id': moment.id})

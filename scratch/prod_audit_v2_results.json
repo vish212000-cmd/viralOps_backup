@@ -1,0 +1,434 @@
+[
+  {
+    "route": "Dashboard",
+    "viewport": "Desktop",
+    "url": "https://www.vishnumadapakula.in/dashboard",
+    "metrics": {
+      "sidebar": {
+        "width": 240,
+        "left": 0,
+        "right": 240
+      },
+      "content": {
+        "width": 1200,
+        "left": 240,
+        "right": 1440
+      },
+      "heading": {
+        "width": 226.0625,
+        "left": 705,
+        "right": 931.0625
+      },
+      "styles": {
+        "marginLeft": "0px",
+        "paddingLeft": "0px",
+        "width": "1200px",
+        "overflowX": "visible (html), hidden (body)"
+      },
+      "validation": {
+        "contentOverlapsSidebar": false,
+        "headingOverlapsSidebar": false,
+        "pageOverflows": false,
+        "contentBeginsAtZero": false
+      }
+    },
+    "screenshotFilename": "PROD_Dashboard_Desktop.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Dashboard_Desktop.png"
+  },
+  {
+    "route": "Project Details",
+    "viewport": "Desktop",
+    "url": "https://www.vishnumadapakula.in/projects/1",
+    "metrics": {
+      "sidebar": {
+        "width": 0,
+        "left": 0,
+        "right": 0
+      },
+      "content": {
+        "width": 0,
+        "left": 0,
+        "right": 0
+      },
+      "heading": {
+        "width": 418,
+        "left": 511,
+        "right": 929
+      },
+      "styles": {
+        "marginLeft": "0px",
+        "paddingLeft": "0px",
+        "width": "0px",
+        "overflowX": "visible (html), hidden (body)"
+      },
+      "validation": {
+        "contentOverlapsSidebar": false,
+        "headingOverlapsSidebar": false,
+        "pageOverflows": false,
+        "contentBeginsAtZero": true
+      }
+    },
+    "screenshotFilename": "PROD_Project_Details_Desktop.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Project_Details_Desktop.png"
+  },
+  {
+    "route": "Preferences",
+    "viewport": "Desktop",
+    "url": "https://www.vishnumadapakula.in/preferences",
+    "metrics": {
+      "sidebar": {
+        "width": 240,
+        "left": 0,
+        "right": 240
+      },
+      "content": {
+        "width": 1200,
+        "left": 240,
+        "right": 1440
+      },
+      "heading": {
+        "width": 1104,
+        "left": 288,
+        "right": 1392
+      },
+      "styles": {
+        "marginLeft": "0px",
+        "paddingLeft": "0px",
+        "width": "1200px",
+        "overflowX": "visible (html), hidden (body)"
+      },
+      "validation": {
+        "contentOverlapsSidebar": false,
+        "headingOverlapsSidebar": false,
+        "pageOverflows": false,
+        "contentBeginsAtZero": false
+      }
+    },
+    "screenshotFilename": "PROD_Preferences_Desktop.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Preferences_Desktop.png"
+  },
+  {
+    "route": "Analytics",
+    "viewport": "Desktop",
+    "url": "https://www.vishnumadapakula.in/analytics",
+    "metrics": {
+      "sidebar": {
+        "width": 240,
+        "left": 0,
+        "right": 240
+      },
+      "content": {
+        "width": 1200,
+        "left": 240,
+        "right": 1440
+      },
+      "heading": {
+        "width": 0,
+        "left": 0,
+        "right": 0
+      },
+      "styles": {
+        "marginLeft": "0px",
+        "paddingLeft": "0px",
+        "width": "1200px",
+        "overflowX": "visible (html), hidden (body)"
+      },
+      "validation": {
+        "contentOverlapsSidebar": false,
+        "headingOverlapsSidebar": false,
+        "pageOverflows": false,
+        "contentBeginsAtZero": false
+      }
+    },
+    "screenshotFilename": "PROD_Analytics_Desktop.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Analytics_Desktop.png"
+  },
+  {
+    "route": "Billing",
+    "viewport": "Desktop",
+    "url": "https://www.vishnumadapakula.in/billing",
+    "metrics": {
+      "sidebar": {
+        "width": 240,
+        "left": 0,
+        "right": 240
+      },
+      "content": {
+        "width": 1200,
+        "left": 240,
+        "right": 1440
+      },
+      "heading": {
+        "width": 0,
+        "left": 0,
+        "right": 0
+      },
+      "styles": {
+        "marginLeft": "0px",
+        "paddingLeft": "0px",
+        "width": "1200px",
+        "overflowX": "visible (html), hidden (body)"
+      },
+      "validation": {
+        "contentOverlapsSidebar": false,
+        "headingOverlapsSidebar": false,
+        "pageOverflows": false,
+        "contentBeginsAtZero": false
+      }
+    },
+    "screenshotFilename": "PROD_Billing_Desktop.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Billing_Desktop.png"
+  },
+  {
+    "route": "Admin Center",
+    "viewport": "Desktop",
+    "url": "https://www.vishnumadapakula.in/admin",
+    "metrics": {
+      "sidebar": {
+        "width": 0,
+        "left": 0,
+        "right": 0
+      },
+      "content": {
+        "width": 0,
+        "left": 0,
+        "right": 0
+      },
+      "heading": {
+        "width": 418,
+        "left": 511,
+        "right": 929
+      },
+      "styles": {
+        "marginLeft": "0px",
+        "paddingLeft": "0px",
+        "width": "0px",
+        "overflowX": "visible (html), hidden (body)"
+      },
+      "validation": {
+        "contentOverlapsSidebar": false,
+        "headingOverlapsSidebar": false,
+        "pageOverflows": false,
+        "contentBeginsAtZero": true
+      }
+    },
+    "screenshotFilename": "PROD_Admin_Center_Desktop.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Admin_Center_Desktop.png"
+  },
+  {
+    "route": "Dashboard",
+    "viewport": "Mobile",
+    "url": "https://www.vishnumadapakula.in/dashboard",
+    "metrics": {
+      "sidebar": {
+        "width": 240,
+        "left": -240,
+        "right": 0
+      },
+      "content": {
+        "width": 390,
+        "left": 0,
+        "right": 390
+      },
+      "heading": {
+        "width": 214.46875,
+        "left": 118.53125,
+        "right": 333
+      },
+      "styles": {
+        "marginLeft": "0px",
+        "paddingLeft": "0px",
+        "width": "390px",
+        "overflowX": "visible (html), hidden (body)"
+      },
+      "validation": {
+        "contentOverlapsSidebar": false,
+        "headingOverlapsSidebar": false,
+        "pageOverflows": false,
+        "contentBeginsAtZero": true
+      }
+    },
+    "screenshotFilename": "PROD_Dashboard_Mobile.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Dashboard_Mobile.png"
+  },
+  {
+    "route": "Project Details",
+    "viewport": "Mobile",
+    "url": "https://www.vishnumadapakula.in/projects/1",
+    "metrics": {
+      "sidebar": {
+        "width": 0,
+        "left": 0,
+        "right": 0
+      },
+      "content": {
+        "width": 0,
+        "left": 0,
+        "right": 0
+      },
+      "heading": {
+        "width": 260,
+        "left": 65,
+        "right": 325
+      },
+      "styles": {
+        "marginLeft": "0px",
+        "paddingLeft": "0px",
+        "width": "0px",
+        "overflowX": "visible (html), hidden (body)"
+      },
+      "validation": {
+        "contentOverlapsSidebar": false,
+        "headingOverlapsSidebar": false,
+        "pageOverflows": false,
+        "contentBeginsAtZero": true
+      }
+    },
+    "screenshotFilename": "PROD_Project_Details_Mobile.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Project_Details_Mobile.png"
+  },
+  {
+    "route": "Preferences",
+    "viewport": "Mobile",
+    "url": "https://www.vishnumadapakula.in/preferences",
+    "metrics": {
+      "sidebar": {
+        "width": 240,
+        "left": -240,
+        "right": 0
+      },
+      "content": {
+        "width": 390,
+        "left": 0,
+        "right": 390
+      },
+      "heading": {
+        "width": 342,
+        "left": 24,
+        "right": 366
+      },
+      "styles": {
+        "marginLeft": "0px",
+        "paddingLeft": "0px",
+        "width": "390px",
+        "overflowX": "visible (html), hidden (body)"
+      },
+      "validation": {
+        "contentOverlapsSidebar": false,
+        "headingOverlapsSidebar": false,
+        "pageOverflows": false,
+        "contentBeginsAtZero": true
+      }
+    },
+    "screenshotFilename": "PROD_Preferences_Mobile.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Preferences_Mobile.png"
+  },
+  {
+    "route": "Analytics",
+    "viewport": "Mobile",
+    "url": "https://www.vishnumadapakula.in/analytics",
+    "metrics": {
+      "sidebar": {
+        "width": 240,
+        "left": -240,
+        "right": 0
+      },
+      "content": {
+        "width": 390,
+        "left": 0,
+        "right": 390
+      },
+      "heading": {
+        "width": 0,
+        "left": 0,
+        "right": 0
+      },
+      "styles": {
+        "marginLeft": "0px",
+        "paddingLeft": "0px",
+        "width": "390px",
+        "overflowX": "visible (html), hidden (body)"
+      },
+      "validation": {
+        "contentOverlapsSidebar": false,
+        "headingOverlapsSidebar": false,
+        "pageOverflows": false,
+        "contentBeginsAtZero": true
+      }
+    },
+    "screenshotFilename": "PROD_Analytics_Mobile.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Analytics_Mobile.png"
+  },
+  {
+    "route": "Billing",
+    "viewport": "Mobile",
+    "url": "https://www.vishnumadapakula.in/billing",
+    "metrics": {
+      "sidebar": {
+        "width": 240,
+        "left": -240,
+        "right": 0
+      },
+      "content": {
+        "width": 390,
+        "left": 0,
+        "right": 390
+      },
+      "heading": {
+        "width": 0,
+        "left": 0,
+        "right": 0
+      },
+      "styles": {
+        "marginLeft": "0px",
+        "paddingLeft": "0px",
+        "width": "390px",
+        "overflowX": "visible (html), hidden (body)"
+      },
+      "validation": {
+        "contentOverlapsSidebar": false,
+        "headingOverlapsSidebar": false,
+        "pageOverflows": false,
+        "contentBeginsAtZero": true
+      }
+    },
+    "screenshotFilename": "PROD_Billing_Mobile.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Billing_Mobile.png"
+  },
+  {
+    "route": "Admin Center",
+    "viewport": "Mobile",
+    "url": "https://www.vishnumadapakula.in/admin",
+    "metrics": {
+      "sidebar": {
+        "width": 0,
+        "left": 0,
+        "right": 0
+      },
+      "content": {
+        "width": 0,
+        "left": 0,
+        "right": 0
+      },
+      "heading": {
+        "width": 260,
+        "left": 65,
+        "right": 325
+      },
+      "styles": {
+        "marginLeft": "0px",
+        "paddingLeft": "0px",
+        "width": "0px",
+        "overflowX": "visible (html), hidden (body)"
+      },
+      "validation": {
+        "contentOverlapsSidebar": false,
+        "headingOverlapsSidebar": false,
+        "pageOverflows": false,
+        "contentBeginsAtZero": true
+      }
+    },
+    "screenshotFilename": "PROD_Admin_Center_Mobile.png",
+    "screenshotPath": "C:\\personal\\projects\\viralOps\\artifacts\\PROD_Admin_Center_Mobile.png"
+  }
+]
