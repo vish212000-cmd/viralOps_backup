@@ -93,7 +93,25 @@ def _extract_pdf_text(file_path):
     
     # OCR Fallback if text is empty or meaningless
     if not text or not any(c.isalnum() for c in text):
-        logger.info(f"pypdf returned no usable text. Attempting OCR fallback via Gemini.")
+        logger.info(f"pypdf returned no usable text. Attempting OCR fallback via pytesseract.")
+        try:
+            from pdf2image import convert_from_path
+            import pytesseract
+            
+            images = convert_from_path(file_path)
+            ocr_text = ""
+            for img in images:
+                ocr_text += pytesseract.image_to_string(img) + "\n"
+                
+            if ocr_text.strip() and any(c.isalnum() for c in ocr_text):
+                logger.info("OCR fallback via pytesseract succeeded.")
+                return ocr_text.strip()
+            else:
+                logger.warning("pytesseract OCR returned empty text. Attempting Gemini fallback.")
+        except Exception as e:
+            logger.error(f"pytesseract OCR failed: {e}. Attempting Gemini fallback.")
+            
+        logger.info(f"Attempting OCR fallback via Gemini.")
         try:
             import google.generativeai as genai
             import os
