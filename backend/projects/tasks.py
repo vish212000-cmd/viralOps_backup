@@ -388,6 +388,11 @@ def process_source_input(self, source_input_id):
             return
 
         logger.exception(f"[Task] Pipeline failed for SourceInput {source_input_id}: {e}")
+        try:
+            import sentry_sdk
+            sentry_sdk.capture_exception(e)
+        except Exception:
+            pass
 
         
         if is_ai_quota_error(e):

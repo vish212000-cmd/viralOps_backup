@@ -56,22 +56,32 @@ def _extract_youtube_id(url):
 def _extract_article_text(url):
     try:
         from bs4 import BeautifulSoup
+        logger.info(f"[_extract_article_text] Fetching article from {url}")
         response = requests.get(
             url,
-            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
-            timeout=15
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ViralOpsBot/1.0"},
+            timeout=20
         )
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
-        for elem in soup(["script", "style", "nav", "footer", "header", "aside", "form"]):
+        # Aggressively remove non-content elements
+        for elem in soup([
+            "script", "style", "nav", "footer", "header", "aside", "form",
+            "iframe", "noscript", "button", "svg", "path"
+        ]):
             elem.decompose()
-        text = soup.get_text()
+        
+        # Remove common ad, tracking, or comment divs
+        for div in soup.find_all(['div', 'section'], class_=lambda x: x and any(c in x.lower() for c in ['ad', 'comment', 'sidebar', 'promo', 'related', 'social'])):
+            div.decompose()
+            
+        text = soup.get_text(separator='\n')
         lines = (line.strip() for line in text.splitlines())
-        chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-        clean_text = "\n".join(chunk for chunk in chunks if chunk)
+        clean_text = "\n".join(line for line in lines if line)
+        logger.info(f"[_extract_article_text] Successfully extracted {len(clean_text)} chars from {url}")
         return clean_text
     except Exception as e:
-        logger.error(f"Article scraping failed for {url}: {e}")
+        logger.error(f"[_extract_article_text] Article scraping failed for {url}: {e}")
         return None
 
 
