@@ -43,7 +43,7 @@ export function Button({
     y.set(0);
   };
 
-  const baseStyles = "relative inline-flex items-center justify-center gap-2 px-6 py-3 font-mono text-sm font-semibold tracking-wide transition-colors outline-none disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden rounded-full";
+  const baseStyles = "relative inline-flex items-center justify-center gap-2 px-6 py-2.5 font-sans text-sm font-medium transition-colors outline-none disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden rounded-[6px]";
   
   const variants = {
     primary: "bg-accent-primary text-white hover:bg-accent-primary/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]",

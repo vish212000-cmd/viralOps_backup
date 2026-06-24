@@ -52,11 +52,29 @@ export default function Dashboard() {
     if (!authLoading) {
       if (orgs.length > 0 && currentOrg) {
         loadProjects(currentOrg.slug);
+      } else if (orgs.length === 0 && !creatingOrg && user) {
+        // Auto-create workspace for creator workflow
+        autoCreateWorkspace();
       } else {
         setLoading(false);
       }
     }
   }, [authLoading, currentOrg, orgs]);
+
+  const autoCreateWorkspace = async () => {
+    setCreatingOrg(true);
+    try {
+      await api.post('/api/workspaces/', { name: 'Personal Workspace' });
+      await loadWorkspaces();
+      showToast('Workspace ready!', 'success');
+    } catch (err) {
+      console.error(err);
+      setError('Failed to setup workspace.');
+    } finally {
+      setCreatingOrg(false);
+      setLoading(false);
+    }
+  };
 
   const loadProjects = async (orgSlug: string) => {
     try {
@@ -189,92 +207,29 @@ export default function Dashboard() {
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 200, damping: 20 } }
   };
 
-  if (authLoading || (loading && orgs.length > 0)) {
+  if (authLoading || loading || creatingOrg) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-bg-base" />
+      <div className="min-h-[100dvh] flex items-center justify-center relative overflow-hidden bg-bg-base">
         <div className="flex flex-col items-center gap-6 relative z-10">
-          <div className="relative w-24 h-24 flex items-center justify-center">
-            <motion.div animate={{ rotate: 360 }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }} className="absolute inset-0 rounded-full border-t border-r border-accent-cyan opacity-50" />
-            <motion.div animate={{ rotate: -360 }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }} className="absolute inset-2 rounded-full border-b border-l border-accent-primary opacity-50" />
-            <Sparkles size={32} className="text-white animate-pulse" />
-          </div>
-          <p className="text-accent-cyan font-mono tracking-widest text-sm uppercase">Loading your dashboard...</p>
+          <Loader2 size={32} className="text-accent-primary animate-spin" />
+          <p className="text-text-muted text-sm font-medium">Setting up your studio...</p>
         </div>
-      </div>
-    );
-  }
-
-  // Zero State Setup Workspace
-  if (orgs.length === 0 || creatingOrg) {
-    return (
-      <div className="min-h-[100dvh] relative flex items-center justify-center p-4 overflow-hidden">
-        {/* Aurora Background Elements Removed for Performance */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-[480px] relative z-10">
-          <Card glow className="p-10">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center shadow-lg shadow-accent-primary/20">
-                <HardDrive size={24} className="text-white" />
-              </div>
-              <h2 className="text-2xl font-display font-bold text-white">
-                {creatingOrg ? 'Create a Workspace' : 'Welcome to ViralOps'}
-              </h2>
-            </div>
-            <p className="text-text-muted text-sm leading-relaxed mb-8">
-              Create a workspace to start uploading content and generating social assets.
-            </p>
-            <form onSubmit={handleCreateOrg} className="flex flex-col gap-6">
-              <Input 
-                label="Workspace Name"
-                type="text"
-                value={newOrgName}
-                onChange={(e) => setNewOrgName(e.target.value)}
-                required
-                placeholder="e.g. My Agency"
-                className="font-mono"
-              />
-              <div className="flex gap-4 mt-2">
-                <Button type="submit" className="flex-1 justify-center">
-                  Create Workspace
-                </Button>
-                {creatingOrg && (
-                  <Button type="button" variant="ghost" onClick={() => setCreatingOrg(false)}>
-                    Cancel
-                  </Button>
-                )}
-              </div>
-            </form>
-          </Card>
-        </motion.div>
       </div>
     );
   }
 
   return (
     <div className="flex-1 w-full flex flex-col relative z-10 max-h-[100dvh] overflow-y-auto overflow-x-hidden">
-      {/* Ambient Top Glow */}
-      <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-accent-primary/5 to-transparent pointer-events-none -z-10" />
-
       <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-10">
-          <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+          <header className="mb-12">
             <div>
-              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 mb-2">
-                <Activity size={20} className="text-accent-cyan" />
-                <span className="text-xs font-mono tracking-widest text-accent-cyan uppercase font-semibold">All Systems Active</span>
-              </motion.div>
-              <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-4xl md:text-5xl font-display font-bold text-white tracking-tight">
-                Dashboard
+              <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-4xl md:text-5xl font-display font-bold text-white tracking-tight">
+                Welcome back, {user?.username}
               </motion.h1>
-              <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-text-muted mt-2">
-                Managing your content projects for <span className="text-white font-medium">{currentOrg?.name}</span>
+              <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-text-muted mt-2 text-lg">
+                Let's create some content today.
               </motion.p>
             </div>
-            
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }}>
-              <Button onClick={() => setShowNewProj(true)} icon={<Plus size={18} />}>
-                Create Project
-              </Button>
-            </motion.div>
           </header>
 
           <AnimatePresence>
@@ -288,90 +243,67 @@ export default function Dashboard() {
             )}
           </AnimatePresence>
 
-          {/* Bento Grid Analytics */}
+          {/* Hero Action Section */}
           <motion.div 
             variants={containerVariants}
             initial="hidden"
             animate="show"
             className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12"
           >
-            <motion.div variants={itemVariants}>
-              <Card glow className="p-6 flex flex-col justify-between h-full min-h-[140px] bg-gradient-to-br from-bg-elevated/80 to-bg-surface/80">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-accent-primary/20 flex items-center justify-center border border-accent-primary/30">
-                    <Folder size={18} className="text-accent-primary" />
-                  </div>
-                  <span className="text-[10px] font-mono tracking-widest text-text-dim uppercase">Total Projects</span>
+            <motion.div variants={itemVariants} className="md:col-span-2">
+              <Card glow className="p-8 h-full flex flex-col justify-center items-center text-center border-dashed border-white/20 hover:border-accent-primary/50 transition-colors cursor-pointer bg-white/[0.02]" onClick={() => { setSourceType('VIDEO'); setShowNewProj(true); }}>
+                <div className="w-16 h-16 rounded-full bg-accent-primary/20 flex items-center justify-center mb-6">
+                  <Video size={28} className="text-accent-primary" />
                 </div>
-                <div>
-                  <div className="text-3xl font-display font-bold text-white">{projects.length}</div>
-                  <div className="text-xs text-success mt-1 flex items-center gap-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" /> Active projects
-                  </div>
+                <h2 className="text-2xl font-display font-bold text-white mb-2">Create New Content</h2>
+                <p className="text-text-muted mb-6 max-w-md mx-auto">Upload a video, paste a YouTube link, or import a podcast to generate ready-to-post social assets.</p>
+                <div className="flex flex-wrap items-center justify-center gap-4">
+                  <Button onClick={(e) => { e.stopPropagation(); setSourceType('VIDEO'); setShowNewProj(true); }} icon={<Video size={18} />}>Upload Video</Button>
+                  <Button variant="ghost" onClick={(e) => { e.stopPropagation(); setSourceType('YOUTUBE'); setShowNewProj(true); }} icon={<Link2 size={18} />}>Paste YouTube URL</Button>
                 </div>
               </Card>
             </motion.div>
 
-            <motion.div variants={itemVariants}>
-              <Card className="p-6 flex flex-col justify-between h-full min-h-[140px] border-white/5 relative overflow-hidden">
-                {/* Aurora Background Elements Removed for Performance */}
-                <div className="flex justify-between items-start mb-4 relative z-10">
-                  <div className="w-10 h-10 rounded-lg bg-accent-cyan/10 flex items-center justify-center border border-accent-cyan/20">
-                    <Cpu size={18} className="text-accent-cyan" />
-                  </div>
-                  <span className="text-[10px] font-mono tracking-widest text-text-dim uppercase">AI Usage</span>
-                </div>
-                <div className="relative z-10">
-                  <div className="text-3xl font-mono font-bold text-white flex items-baseline gap-2">
-                    12 <span className="text-sm font-sans text-text-muted font-medium">/ 60</span>
-                  </div>
-                  <div className="text-xs text-text-muted mt-1">Assets generated</div>
-                  <div className="w-full h-1 bg-white/10 rounded-full mt-3 overflow-hidden">
-                    <div className="h-full bg-accent-cyan w-[20%] rounded-full shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
+            <motion.div variants={itemVariants} className="flex flex-col gap-6">
+              {/* Usage Section */}
+              <Card className="p-6 flex-1 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-text-muted mb-4 uppercase tracking-wider">AI Credits</h3>
+                  <div className="text-4xl font-display font-bold text-white mb-2">12 <span className="text-lg text-text-dim font-normal">/ 60</span></div>
+                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-accent-primary w-[20%] rounded-full" />
                   </div>
                 </div>
               </Card>
-            </motion.div>
-
-            <motion.div variants={itemVariants}>
-              <Card className="p-6 flex flex-col justify-between h-full min-h-[140px] border-white/5">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center border border-white/10">
-                    <Shield size={18} className="text-text-muted" />
-                  </div>
-                  <span className="text-[10px] font-mono tracking-widest text-text-dim uppercase">Account Status</span>
-                </div>
+              <Card className="p-6 flex-1 flex flex-col justify-between">
                 <div>
-                  <div className="text-lg font-display font-bold text-white">Nominal</div>
-                  <div className="text-xs text-text-muted mt-1">All services running</div>
+                  <h3 className="text-sm font-semibold text-text-muted mb-1 uppercase tracking-wider">Current Plan</h3>
+                  <div className="text-xl font-display font-bold text-white mb-2">Creator <span className="text-xs text-success ml-2 px-2 py-1 bg-success/10 rounded-full">Active</span></div>
+                  <div className="text-sm text-text-muted mt-2">142 assets generated this month</div>
                 </div>
               </Card>
             </motion.div>
           </motion.div>
 
-          {/* Active Projects List */}
+          {/* Recent Content */}
           <motion.section 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, type: "spring", stiffness: 200, damping: 20 }}
           >
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-display font-bold text-white">Your Projects</h2>
-              <div className="text-xs text-text-dim font-mono uppercase tracking-widest">Live Sync</div>
+              <h2 className="text-xl font-display font-bold text-white">Recent Content</h2>
             </div>
             
             {projects.length === 0 ? (
-              <Card className="p-16 flex flex-col items-center justify-center text-center border-dashed border-white/10 bg-white/[0.02]">
-                <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 mb-4 shadow-inner">
-                  <Database size={24} className="text-text-dim" />
+              <Card className="p-12 flex flex-col items-center justify-center text-center bg-white/[0.02]">
+                <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 mb-4">
+                  <FileText size={24} className="text-text-dim" />
                 </div>
-                <h3 className="text-lg font-display font-bold text-white mb-2">No projects yet</h3>
-                <p className="text-sm text-text-muted max-w-md mb-8">
-                  Create your first project to start transforming long-form content into viral social assets.
+                <h3 className="text-lg font-display font-bold text-white mb-2">No content yet</h3>
+                <p className="text-sm text-text-muted max-w-md">
+                  Your generated assets will appear here.
                 </p>
-                <Button onClick={() => setShowNewProj(true)} icon={<Plus size={16} />}>
-                  Create Project
-                </Button>
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -460,7 +392,7 @@ export default function Dashboard() {
                   </button>
                 </div>
                 
-                <div className="p-6 sm:p-8 overflow-y-auto custom-scrollbar">
+                <div className="p-6 sm:p-8 overflow-y-auto custom-scrollbar flex-1 min-h-0">
                   <form id="ingestion-form" onSubmit={handleCreateProject} className="flex flex-col gap-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <Input 
