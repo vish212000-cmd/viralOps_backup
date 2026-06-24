@@ -19,6 +19,7 @@ export default function AppLayout() {
         <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsMobileOpen(false)}
+          aria-hidden="true"
         />
       )}
       
@@ -28,8 +29,9 @@ export default function AppLayout() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsMobileOpen(true)}
-              className="text-text-muted hover:text-white focus:outline-none cursor-pointer"
+              className="text-text-muted hover:text-white focus:outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-accent-cyan rounded"
               aria-label="Open navigation menu"
+              aria-expanded={isMobileOpen}
             >
               <Menu size={24} />
             </button>

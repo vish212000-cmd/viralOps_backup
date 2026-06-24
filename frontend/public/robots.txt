@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /signup
+Allow: /terms
+Allow: /privacy
+Allow: /refund
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /billing
+Disallow: /analytics
+Disallow: /content
+Disallow: /templates
+Disallow: /projects/
+
+Sitemap: https://viralops.com/sitemap.xml
