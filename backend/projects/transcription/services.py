@@ -25,8 +25,7 @@ class TranscriptionError(Exception):
 def get_transcription_provider():
     """
     Determines the transcription provider based on configuration.
-    Returns: 'whisper', 'assemblyai'
-    NOTE: 'simulated' mode has been removed — real transcription required.
+    Returns: 'whisper_local', 'whisper', 'assemblyai'
     """
     pref = os.getenv('TRANSCRIPTION_PROVIDER', '').lower()
     openai_key = os.getenv('OPENAI_API_KEY')
@@ -36,6 +35,8 @@ def get_transcription_provider():
         return 'whisper'
     if pref == 'assemblyai' and assembly_key:
         return 'assemblyai'
+    if pref == 'whisper_local':
+        return 'whisper_local'
 
     # Fallback to whatever is configured
     if openai_key:
@@ -43,7 +44,7 @@ def get_transcription_provider():
     if assembly_key:
         return 'assemblyai'
 
-    return 'none'
+    return 'whisper_local'
 
 
 def _extract_youtube_id(url):
@@ -75,18 +76,70 @@ def _extract_article_text(url):
 
 
 def _extract_pdf_text(file_path):
+    import logging
+    logger = logging.getLogger(__name__)
+    text = ""
     try:
         import pypdf
         reader = pypdf.PdfReader(file_path)
-        text = ""
         for page in reader.pages:
             t = page.extract_text()
             if t:
                 text += t + "\n"
-        return text.strip()
     except Exception as e:
-        logger.error(f"PDF text extraction failed for {file_path}: {e}")
-        return None
+        logger.error(f"pypdf extraction failed for {file_path}: {e}")
+        
+    text = text.strip()
+    
+    # OCR Fallback if text is empty or meaningless
+    if not text or not any(c.isalnum() for c in text):
+        logger.info(f"pypdf returned no usable text. Attempting OCR fallback via Gemini.")
+        try:
+            import google.generativeai as genai
+            import os
+            import time
+            
+            gemini_key = os.getenv('GEMINI_API_KEY')
+            if not gemini_key:
+                logger.warning("GEMINI_API_KEY is not configured. Skipping OCR fallback.")
+                return None
+                
+            genai.configure(api_key=gemini_key)
+            
+            # Upload the file to Gemini
+            uploaded_file = genai.upload_file(path=file_path)
+            
+            # Wait for file processing if needed
+            while uploaded_file.state.name == "PROCESSING":
+                time.sleep(2)
+                uploaded_file = genai.get_file(uploaded_file.name)
+                
+            if uploaded_file.state.name == "FAILED":
+                raise Exception("Gemini file processing failed.")
+                
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            response = model.generate_content([
+                "Extract all text from this document accurately. Do not summarize or add markdown formatting, just return the raw text.",
+                uploaded_file
+            ])
+            
+            # Cleanup
+            try:
+                genai.delete_file(uploaded_file.name)
+            except Exception as e:
+                logger.warning(f"Failed to delete gemini file {uploaded_file.name}: {e}")
+                
+            fallback_text = response.text.strip()
+            if fallback_text and any(c.isalnum() for c in fallback_text):
+                logger.info(f"OCR fallback succeeded. Extracted {len(fallback_text)} characters.")
+                return fallback_text
+            else:
+                logger.warning("OCR fallback returned empty text.")
+                
+        except Exception as e:
+            logger.error(f"OCR fallback via Gemini failed for {file_path}: {e}")
+            
+    return text if text else None
 
 
 def transcribe_source_input(source_input):
@@ -238,6 +291,8 @@ def transcribe_source_input(source_input):
         return _transcribe_whisper(file_path)
     elif provider == 'assemblyai':
         return _transcribe_assemblyai(file_path)
+    elif provider == 'whisper_local':
+        return _transcribe_whisper_local(file_path)
 
     raise TranscriptionError(f"Unknown transcription provider: {provider}")
 
@@ -266,6 +321,45 @@ def _normalize_text_source(text: str, title: str):
         })
     return text, normalized_text, segments, duration_seconds
 
+
+def _transcribe_whisper_local(file_path):
+    import whisper
+    import time
+    
+    logger.info(f"Loading local whisper model 'base' for {file_path}")
+    start_time = time.time()
+    try:
+        model = whisper.load_model("base")
+        logger.info(f"Loaded whisper model in {time.time() - start_time:.2f}s")
+        
+        logger.info(f"Starting local transcription for {file_path}")
+        start_time = time.time()
+        result = model.transcribe(file_path)
+        logger.info(f"Local transcription finished in {time.time() - start_time:.2f}s")
+    except Exception as e:
+        logger.error(f"Local whisper transcription failed: {e}")
+        raise TranscriptionError(f"Local whisper transcription failed: {e}")
+        
+    raw_text = result.get('text', '')
+    normalized_text = "\n".join([line.strip() for line in raw_text.splitlines() if line.strip()])
+    
+    raw_segments = result.get('segments', [])
+    segments = []
+    duration_seconds = 0.0
+    for s in raw_segments:
+        start = s.get('start', 0.0)
+        end = s.get('end', 0.0)
+        if end > duration_seconds:
+            duration_seconds = end
+            
+        segments.append({
+            "start": start,
+            "end": end,
+            "speaker": "Speaker 1",
+            "text": s.get('text', '').strip()
+        })
+        
+    return raw_text, normalized_text, segments, int(duration_seconds)
 
 def _transcribe_whisper(file_path):
     openai_key = os.getenv('OPENAI_API_KEY')
