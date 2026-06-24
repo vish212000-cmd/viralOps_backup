@@ -365,15 +365,16 @@ export default function Dashboard() {
           >
             <div className="absolute inset-0 bg-bg-base/90 backdrop-blur-md" onClick={() => setShowNewProj(false)} />
             
-            <motion.div
+            <Card 
+              glow
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className="relative w-full max-w-[720px] max-h-[90dvh] flex flex-col"
+              className="relative w-full max-w-[720px] max-h-[90dvh] flex flex-col bg-bg-surface/95 border-white/10 shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden" 
+              innerClassName="flex-1 flex flex-col min-h-0 w-full"
             >
-              <Card glow className="w-full h-full flex flex-col bg-bg-surface/95 border-white/10 shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden min-h-0">
-                <div className="flex items-center justify-between p-6 sm:p-8 border-b border-white/5 bg-white/[0.02] shrink-0">
+              <div className="flex items-center justify-between p-6 sm:p-8 border-b border-white/5 bg-white/[0.02] shrink-0">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-accent-cyan/10 flex items-center justify-center border border-accent-cyan/20">
                       <Cpu size={20} className="text-accent-cyan" />
@@ -556,7 +557,6 @@ export default function Dashboard() {
                   </Button>
                 </div>
               </Card>
-            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -5,9 +5,10 @@ import { cn } from '../../utils/cn';
 interface CardProps extends HTMLMotionProps<"div"> {
   children: ReactNode;
   glow?: boolean;
+  innerClassName?: string;
 }
 
-export function Card({ children, className, glow = false, ...props }: CardProps) {
+export function Card({ children, className, glow = false, innerClassName, ...props }: CardProps) {
   return (
     <motion.div
       layout
@@ -20,7 +21,7 @@ export function Card({ children, className, glow = false, ...props }: CardProps)
     >
       {/* Optional ambient inner gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
-      <div className="relative z-10">
+      <div className={cn("relative z-10", innerClassName)}>
         {children}
       </div>
     </motion.div>
