@@ -35,8 +35,8 @@ def get_or_create_default_plans():
         },
         {
             'name': 'PRO',
-            'price_monthly': 499.00,
-            'price_yearly': 4990.00,
+            'price_monthly': 999.00,
+            'price_yearly': 9990.00,
             'razorpay_plan_id': 'plan_mock_pro',
             'max_projects': 15,
             'max_generations_per_month': 1000,
@@ -47,8 +47,8 @@ def get_or_create_default_plans():
         },
         {
             'name': 'TEAMS',
-            'price_monthly': 1499.00,
-            'price_yearly': 14990.00,
+            'price_monthly': 2499.00,
+            'price_yearly': 24990.00,
             'razorpay_plan_id': 'plan_mock_teams',
             'max_projects': 50,
             'max_generations_per_month': 5000,
@@ -59,8 +59,8 @@ def get_or_create_default_plans():
         },
         {
             'name': 'ENTERPRISE',
-            'price_monthly': 5000.00,
-            'price_yearly': 50000.00,
+            'price_monthly': 4999.00,
+            'price_yearly': 49990.00,
             'razorpay_plan_id': 'plan_mock_ent',
             'max_projects': 999999,
             'max_generations_per_month': 999999,

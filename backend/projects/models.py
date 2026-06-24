@@ -18,6 +18,12 @@ class Project(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def save(self, *args, **kwargs):
+        if self.status == 'COMPLETED' and self.pk:
+            if self.assets.count() == 0:
+                self.status = 'FAILED'
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.name} ({self.organization.name})"
 

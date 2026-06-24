@@ -48,7 +48,18 @@ def run_content_intelligence(project, source_input, transcript_text: str) -> dic
     provider = get_ai_provider()
 
     try:
-        data = _run_intelligence_with_retry(provider, project.id, transcript_text)
+        import os
+        if os.getenv('E2E_MOCK') == '1':
+            data = {
+                'summary': 'This is a mock summary for E2E.',
+                'topics': ['Mock Topic 1', 'Mock Topic 2'],
+                'keywords': ['mock', 'e2e', 'test'],
+                'entities': ['Mock Entity'],
+                'emotional_moments': ['Mock Emotion'],
+                'viral_score': 88
+            }
+        else:
+            data = _run_intelligence_with_retry(provider, project.id, transcript_text)
 
         if not data:
             return {}

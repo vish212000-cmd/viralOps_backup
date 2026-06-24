@@ -42,7 +42,14 @@ def detect_moments(project, source_input, transcript_record) -> list:
     provider = get_ai_provider()
 
     try:
-        moments_data = provider.detect_moments(transcript_text)
+        import os
+        if os.getenv('E2E_MOCK') == '1':
+            moments_data = [
+                {'title': 'Mock Hook Moment', 'category': 'HOOK', 'score': 95, 'start_time': '0:00', 'end_time': '0:10', 'excerpt': 'This is a mock excerpt.'},
+                {'title': 'Mock Viral Moment', 'category': 'VIRAL', 'score': 85, 'start_time': '0:10', 'end_time': '0:20', 'excerpt': 'This is another mock excerpt.'}
+            ]
+        else:
+            moments_data = provider.detect_moments(transcript_text)
     except Exception as e:
         logger.error(f"[MomentDetection] Provider call failed for project {project.id}: {e}")
         return []

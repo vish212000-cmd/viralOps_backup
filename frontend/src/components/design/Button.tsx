@@ -5,6 +5,7 @@ import { cn } from '../../utils/cn';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   icon?: ReactNode;
 }
@@ -12,6 +13,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export function Button({ 
   children, 
   variant = 'primary', 
+  size = 'md',
   loading = false, 
   icon, 
   disabled, 
@@ -43,8 +45,14 @@ export function Button({
     y.set(0);
   };
 
-  const baseStyles = "relative inline-flex items-center justify-center gap-2 px-6 py-2.5 font-sans text-sm font-medium transition-colors outline-none disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden rounded-[6px]";
+  const baseStyles = "relative inline-flex items-center justify-center gap-2 font-sans font-medium transition-colors outline-none disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden rounded-[6px]";
   
+  const sizes = {
+    sm: "px-4 py-1.5 text-xs",
+    md: "px-6 py-2.5 text-sm",
+    lg: "px-8 py-3.5 text-base"
+  };
+
   const variants = {
     primary: "bg-accent-primary text-white hover:bg-accent-primary/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]",
     secondary: "bg-white/5 text-white hover:bg-white/10 border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]",
@@ -59,7 +67,7 @@ export function Button({
       onMouseLeave={handleMouseLeave}
       whileTap={{ scale: 0.98, y: 1 }}
       disabled={disabled || loading} 
-      className={cn(baseStyles, variants[variant], className)}
+      className={cn(baseStyles, sizes[size], variants[variant], className)}
       {...props}
     >
       {loading ? (

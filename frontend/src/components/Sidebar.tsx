@@ -42,10 +42,10 @@ export default function Sidebar({ isMobileOpen = false, onClose = () => {} }: Si
   };
 
   const navItems = [
-    { name: 'Home', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Content', path: '/content', icon: Video },
-    { name: 'Templates', path: '/templates', icon: Palette },
-    { name: 'Analytics', path: '/analytics', icon: BarChart2 },
+    { name: 'Overview', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'My Content', path: '/content', icon: Video },
+    { name: 'Brand Kit', path: '/brand-kit', icon: Palette },
+    { name: 'Performance', path: '/performance', icon: BarChart2 },
     { name: 'Billing', path: '/billing', icon: CreditCard },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];

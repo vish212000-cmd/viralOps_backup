@@ -181,6 +181,10 @@ class LoginVerifyOTPView(views.APIView):
             except User.DoesNotExist:
                 return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
             
+            if user.is_mfa_enabled:
+                return Response({'detail': 'This account requires Authenticator MFA. Email OTP login is disabled.'}, status=status.HTTP_403_FORBIDDEN)
+                
+            
             now = timezone.now()
             otp_record = EmailOTP.objects.filter(
                 user=user, purpose='LOGIN', is_used=False, expires_at__gt=now

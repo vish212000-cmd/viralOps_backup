@@ -48,10 +48,13 @@ export default function Dashboard() {
 
   const navigate = useNavigate();
 
+  const [workspaceSummary, setWorkspaceSummary] = useState<any>(null);
+
   useEffect(() => {
     if (!authLoading) {
       if (orgs.length > 0 && currentOrg) {
         loadProjects(currentOrg.slug);
+        loadSummary(currentOrg.slug);
       } else if (orgs.length === 0 && !creatingOrg && user) {
         // Auto-create workspace for creator workflow
         autoCreateWorkspace();
@@ -86,6 +89,15 @@ export default function Dashboard() {
       setError('Failed to load projects.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSummary = async (orgSlug: string) => {
+    try {
+      const summary = await api.get(`/api/analytics/orgs/${orgSlug}/workspace/summary/`);
+      setWorkspaceSummary(summary);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -179,6 +191,7 @@ export default function Dashboard() {
       
       showToast('Project created! AI is generating your assets.', 'success');
       loadProjects(currentOrg.slug);
+      loadSummary(currentOrg.slug);
     } catch (err: any) {
       console.error(err);
       const errors = err?.data;
@@ -265,21 +278,23 @@ export default function Dashboard() {
             </motion.div>
 
             <motion.div variants={itemVariants} className="flex flex-col gap-6">
-              {/* Usage Section */}
               <Card className="p-6 flex-1 flex flex-col justify-between">
                 <div>
-                  <h3 className="text-sm font-semibold text-text-muted mb-4 uppercase tracking-wider">AI Credits</h3>
-                  <div className="text-4xl font-display font-bold text-white mb-2">12 <span className="text-lg text-text-dim font-normal">/ 60</span></div>
-                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-accent-primary w-[20%] rounded-full" />
-                  </div>
+                  <h3 className="text-sm font-semibold text-text-muted mb-1 uppercase tracking-wider">Videos Processed</h3>
+                  <div className="text-4xl font-display font-bold text-white mb-2">{workspaceSummary?.projects_count || 0}</div>
+                  <div className="text-sm text-text-muted mt-2">Projects successfully analyzed</div>
                 </div>
               </Card>
               <Card className="p-6 flex-1 flex flex-col justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-text-muted mb-1 uppercase tracking-wider">Current Plan</h3>
-                  <div className="text-xl font-display font-bold text-white mb-2">Creator <span className="text-xs text-success ml-2 px-2 py-1 bg-success/10 rounded-full">Active</span></div>
-                  <div className="text-sm text-text-muted mt-2">142 assets generated this month</div>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-sm font-semibold text-text-muted mb-1 uppercase tracking-wider">Assets Generated</h3>
+                    <div className="text-4xl font-display font-bold text-accent-cyan mb-2">{workspaceSummary?.assets_count || 0}</div>
+                  </div>
+                  <div className="text-right">
+                    <h3 className="text-sm font-semibold text-text-muted mb-1 uppercase tracking-wider">Hours Saved</h3>
+                    <div className="text-4xl font-display font-bold text-accent-primary mb-2">~{((workspaceSummary?.assets_count || 0) * 0.25).toFixed(1)}</div>
+                  </div>
                 </div>
               </Card>
             </motion.div>
@@ -435,7 +450,7 @@ export default function Dashboard() {
                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
                         {[
                           { id: 'ARTICLE', label: 'Raw Text', icon: FileText },
-                          { id: 'YOUTUBE', label: 'Stream', icon: Link2 },
+                          { id: 'YOUTUBE', label: 'Video Link', icon: Link2 },
                           { id: 'VIDEO', label: 'Video', icon: Video },
                           { id: 'AUDIO', label: 'Audio', icon: Video }, // reusing icon for brevity or use Mic if available, using Video based on original
                           { id: 'PDF', label: 'Document', icon: FileText },

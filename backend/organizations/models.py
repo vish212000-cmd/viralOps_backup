@@ -42,3 +42,17 @@ class WorkspaceInvite(models.Model):
 
     def __str__(self):
         return f"Invite for {self.email} to {self.organization.name}"
+
+class BrandKit(models.Model):
+    organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name='brand_kit')
+    brand_name = models.CharField(max_length=255, blank=True, null=True)
+    brand_voice = models.TextField(blank=True, null=True)
+    audience = models.TextField(blank=True, null=True)
+    cta = models.TextField(blank=True, null=True)
+    hashtags = models.TextField(blank=True, null=True)
+    examples = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"BrandKit for {self.organization.name}"

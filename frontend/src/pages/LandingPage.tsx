@@ -1,140 +1,222 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, Video, FileText, BarChart, ArrowRight, Zap, Target, Layers } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Sparkles, Video, Type, BarChart2, ArrowRight, Zap, Target, Layers, Play, CheckCircle2 } from 'lucide-react';
+import { Button } from '../components/design/Button';
+import { Card } from '../components/design/Card';
 
 export default function LandingPage() {
+  const container: any = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const item: any = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
-    <div style={{ minHeight: '100vh', background: 'hsl(var(--bg-main))', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <header className="glass-panel" style={{ margin: '1.5rem', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ background: 'linear-gradient(135deg, hsl(var(--accent-primary)), hsl(var(--accent-secondary)))', width: '36px', height: '36px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Sparkles size={20} color="#fff" />
+    <div className="min-h-screen bg-bg-base flex flex-col font-sans overflow-x-hidden selection:bg-accent-primary/30">
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-accent-primary rounded-lg flex items-center justify-center">
+              <Sparkles size={18} className="text-white" />
+            </div>
+            <span className="text-xl font-display font-bold tracking-tight text-white">
+              ViralOps
+            </span>
           </div>
-          <span style={{ fontSize: '1.5rem', fontWeight: 800, fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}>
-            Viral<span style={{ color: 'hsl(var(--accent-primary))' }}>Ops</span>
-          </span>
+          <div className="flex items-center gap-6">
+            <a href="#features" className="text-sm font-medium text-text-muted hover:text-white transition-colors hidden md:block">Features</a>
+            <a href="#pricing" className="text-sm font-medium text-text-muted hover:text-white transition-colors hidden md:block">Pricing</a>
+            <Link to="/login" className="text-sm font-bold text-white hover:text-accent-primary transition-colors">Log in</Link>
+            <Link to="/signup">
+              <Button size="sm">Get Started</Button>
+            </Link>
+          </div>
         </div>
-        <nav style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-          <a href="#features" style={{ color: 'hsl(var(--text-muted))', textDecoration: 'none', fontWeight: 500 }}>Features</a>
-          <a href="#pricing" style={{ color: 'hsl(var(--text-muted))', textDecoration: 'none', fontWeight: 500 }}>Pricing</a>
-          <Link to="/login" style={{ color: 'hsl(var(--text-primary))', textDecoration: 'none', fontWeight: 600 }}>Login</Link>
-          <Link to="/signup" className="button" style={{ textDecoration: 'none', padding: '0.6rem 1.2rem' }}>
-            Get Started <ArrowRight size={16} />
-          </Link>
-        </nav>
-      </header>
+      </nav>
 
       {/* Hero Section */}
-      <main style={{ flex: 1, maxWidth: '1200px', margin: '0 auto', padding: '4rem 2rem', textAlign: 'center' }}>
-        <div className="gradient-glow" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'hsl(var(--accent-primary) / 0.1)', border: '1px solid hsl(var(--accent-primary) / 0.3)', padding: '0.5rem 1rem', borderRadius: '99px', color: 'hsl(var(--accent-primary))', fontSize: '0.85rem', fontWeight: 600, marginBottom: '2rem' }}>
-          <Zap size={14} /> AI-Powered Social Ingestion Engine
-        </div>
-
-        <h1 className="gradient-text" style={{ fontSize: '4.5rem', fontWeight: 800, lineHeight: 1.1, marginBottom: '1.5rem', fontFamily: 'var(--font-display)' }}>
-          Turn Long-Form Content<br />Into Viral Assets
-        </h1>
+      <main className="flex-1 pt-32 pb-20 px-6 relative">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[400px] bg-accent-primary/20 blur-[120px] pointer-events-none rounded-full" />
         
-        <p style={{ color: 'hsl(var(--text-muted))', fontSize: '1.25rem', maxWidth: '700px', margin: '0 auto 3rem auto', lineHeight: 1.6 }}>
-          Submit raw video, podcasts, transcripts, articles, or scripts. Extract high-performing hooks, clickable titles, social captions, CTA variants, hashtags, and short scripts optimized for Shorts, Reels, and TikTok.
-        </p>
-
-        <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center' }}>
-          <Link to="/signup" className="button" style={{ fontSize: '1.1rem', padding: '0.9rem 2.2rem', textDecoration: 'none' }}>
-            Start Repurposing Free
-          </Link>
-          <a href="#features" className="button secondary" style={{ fontSize: '1.1rem', padding: '0.9rem 2.2rem', textDecoration: 'none' }}>
-            Explore Features
-          </a>
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-primary/10 border border-accent-primary/20 text-accent-primary text-xs font-bold tracking-wide uppercase mb-8">
+            <Sparkles size={14} /> The AI Content Team for Creators
+          </motion.div>
+          
+          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="text-5xl md:text-7xl font-display font-bold text-white tracking-tight leading-[1.1] mb-6">
+            Turn one video into <br className="hidden md:block" /> a month of content.
+          </motion.h1>
+          
+          <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="text-lg md:text-xl text-text-muted max-w-2xl mx-auto mb-10 leading-relaxed">
+            Upload your podcast, YouTube video, or article. Our AI extracts the best moments, writes engaging hooks, and generates ready-to-post social assets in seconds.
+          </motion.p>
+          
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link to="/signup">
+              <Button size="lg" className="w-full sm:w-auto text-lg px-8 py-6" icon={<ArrowRight size={20} />}>
+                Start Creating for Free
+              </Button>
+            </Link>
+            <a href="#features">
+              <Button variant="ghost" size="lg" className="w-full sm:w-auto text-lg px-8 py-6">
+                See How It Works
+              </Button>
+            </a>
+          </motion.div>
         </div>
 
         {/* Bento Grid Features */}
-        <section id="features" style={{ marginTop: '8rem', textAlign: 'left' }}>
-          <h2 style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '3rem', fontFamily: 'var(--font-display)', textAlign: 'center' }}>
-            Engineered For Scale. Designed For Creators.
-          </h2>
-          
-          <div className="bento-grid">
-            <div className="glass-panel" style={{ padding: '2rem' }}>
-              <Video style={{ color: 'hsl(var(--accent-primary))', marginBottom: '1rem' }} size={32} />
-              <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Multi-Source Ingestion</h3>
-              <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', lineHeight: 1.5 }}>
-                Submit YouTube links, upload raw audio/video files, or paste transcripts, raw scripts, article PDFs, and blogs.
-              </p>
-            </div>
-
-            <div className="glass-panel" style={{ padding: '2rem' }}>
-              <Layers style={{ color: 'hsl(var(--accent-secondary))', marginBottom: '1rem' }} size={32} />
-              <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Social Output Packs</h3>
-              <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', lineHeight: 1.5 }}>
-                Get custom bundles containing multiple hook variations, titles, captions, CTAs, tags, and formatted short scripts.
-              </p>
-            </div>
-
-            <div className="glass-panel" style={{ padding: '2rem' }}>
-              <Target style={{ color: 'hsl(var(--accent-indigo))', marginBottom: '1rem' }} size={32} />
-              <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Workspace Preferences Memory</h3>
-              <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', lineHeight: 1.5 }}>
-                Store your brand's unique tone, preferred hooks, and style requirements. Every generation automatically aligns with your identity.
-              </p>
-            </div>
-
-            <div className="glass-panel" style={{ padding: '2rem' }}>
-              <BarChart style={{ color: 'hsl(var(--success))', marginBottom: '1rem' }} size={32} />
-              <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Enterprise Operations</h3>
-              <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', lineHeight: 1.5 }}>
-                Monitor API usage, track failed jobs, inspect comprehensive audit logs, and easily run retries via our admin panel.
-              </p>
-            </div>
+        <div id="features" className="max-w-6xl mx-auto mt-40">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-display font-bold text-white mb-4 tracking-tight">Everything you need to go viral.</h2>
+            <p className="text-text-muted text-lg">Designed specifically for modern creators and personal brands.</p>
           </div>
-        </section>
 
-        {/* Pricing Section */}
-        <section id="pricing" style={{ marginTop: '8rem', paddingBottom: '4rem' }}>
-          <h2 style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '1rem', fontFamily: 'var(--font-display)', textAlign: 'center' }}>
-            Flexible Pricing for Growing Teams
-          </h2>
-          <p style={{ color: 'hsl(var(--text-muted))', textAlign: 'center', marginBottom: '4rem' }}>
-            Scale up as your social presence grows.
-          </p>
+          <motion.div 
+            variants={container}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-100px" }}
+            className="grid grid-cols-1 md:grid-cols-3 auto-rows-[320px] gap-6"
+          >
+            {/* Large Card */}
+            <motion.div variants={item} className="md:col-span-2">
+              <Card className="h-full p-8 flex flex-col justify-between bg-gradient-to-br from-white/[0.05] to-transparent border-white/10 overflow-hidden relative group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-accent-cyan/10 blur-[60px] rounded-full translate-x-1/2 -translate-y-1/2 group-hover:bg-accent-cyan/20 transition-colors duration-500" />
+                <div className="relative z-10">
+                  <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-6 border border-white/5">
+                    <Video size={24} className="text-white" />
+                  </div>
+                  <h3 className="text-2xl font-display font-bold text-white mb-3">Accepts Any Format</h3>
+                  <p className="text-text-muted text-lg max-w-md">
+                    Paste a YouTube link, upload raw audio, or drop in a PDF script. We process it all and find the hidden gems.
+                  </p>
+                </div>
+              </Card>
+            </motion.div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem', maxWidth: '900px', margin: '0 auto' }}>
-            <div className="glass-panel" style={{ padding: '3rem 2rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div>
-                <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Creator Free</h3>
-                <div style={{ fontSize: '2.5rem', fontWeight: 700, margin: '1.5rem 0' }}>$0 <span style={{ fontSize: '1rem', color: 'hsl(var(--text-muted))' }}>/ mo</span></div>
-                <ul style={{ listStyle: 'none', color: 'hsl(var(--text-muted))', lineHeight: 2, marginBottom: '2rem', fontSize: '0.95rem' }}>
-                  <li>✓ 3 Projects / month</li>
-                  <li>✓ Text Ingestion only</li>
-                  <li>✓ Standard Hook Generation</li>
-                  <li>✓ 1 User Seat</li>
-                </ul>
-              </div>
-              <Link to="/signup" className="button secondary" style={{ justifyContent: 'center', textDecoration: 'none' }}>Get Started</Link>
-            </div>
+            {/* Small Card */}
+            <motion.div variants={item}>
+              <Card className="h-full p-8 flex flex-col justify-between bg-white/[0.02] border-white/5 hover:bg-white/[0.04] transition-colors">
+                <div>
+                  <div className="w-12 h-12 bg-accent-primary/20 rounded-xl flex items-center justify-center mb-6">
+                    <Type size={24} className="text-accent-primary" />
+                  </div>
+                  <h3 className="text-xl font-display font-bold text-white mb-2">Platform-Specific</h3>
+                  <p className="text-text-muted">
+                    Outputs perfectly formatted for X, LinkedIn, TikTok, and Instagram Reels.
+                  </p>
+                </div>
+              </Card>
+            </motion.div>
 
-            <div className="glass-panel" style={{ padding: '3rem 2rem', borderColor: 'hsl(var(--accent-primary) / 0.5)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div style={{ position: 'absolute', top: '-12px', right: '24px', background: 'hsl(var(--accent-primary))', color: '#fff', padding: '0.25rem 0.75rem', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 700 }}>MOST POPULAR</div>
-              <div>
-                <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Pro Plan</h3>
-                <div style={{ fontSize: '2.5rem', fontWeight: 700, margin: '1.5rem 0' }}>$29 <span style={{ fontSize: '1rem', color: 'hsl(var(--text-muted))' }}>/ mo</span></div>
-                <ul style={{ listStyle: 'none', color: 'hsl(var(--text-muted))', lineHeight: 2, marginBottom: '2rem', fontSize: '0.95rem' }}>
-                  <li>✓ Unlimited Projects</li>
-                  <li>✓ Video/Audio File Uploads</li>
-                  <li>✓ YouTube Link Ingestion</li>
-                  <li>✓ Tone & Brand Memory Layer</li>
-                  <li>✓ Pro Asset Exports</li>
-                </ul>
-              </div>
-              <Link to="/signup" className="button" style={{ justifyContent: 'center', textDecoration: 'none' }}>Upgrade to Pro</Link>
-            </div>
+            {/* Small Card */}
+            <motion.div variants={item}>
+              <Card className="h-full p-8 flex flex-col justify-between bg-white/[0.02] border-white/5 hover:bg-white/[0.04] transition-colors">
+                <div>
+                  <div className="w-12 h-12 bg-warning/20 rounded-xl flex items-center justify-center mb-6">
+                    <Target size={24} className="text-warning" />
+                  </div>
+                  <h3 className="text-xl font-display font-bold text-white mb-2">Brand Kit</h3>
+                  <p className="text-text-muted">
+                    Teach the AI your exact tone of voice, audience, and preferred calls to action.
+                  </p>
+                </div>
+              </Card>
+            </motion.div>
+
+            {/* Large Card */}
+            <motion.div variants={item} className="md:col-span-2">
+              <Card className="h-full p-8 flex flex-col justify-between bg-white/[0.02] border-white/5 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-t from-accent-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="relative z-10 flex flex-col md:flex-row gap-8 items-center h-full">
+                  <div className="flex-1">
+                    <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-6 border border-white/5">
+                      <Zap size={24} className="text-white" />
+                    </div>
+                    <h3 className="text-2xl font-display font-bold text-white mb-3">Instant Assets</h3>
+                    <p className="text-text-muted text-lg">
+                      Stop staring at a blank page. Generate 10+ clickable titles, viral hooks, and engaging threads from one piece of content in minutes.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          </motion.div>
+        </div>
+
+        {/* Pricing */}
+        <div id="pricing" className="max-w-5xl mx-auto mt-40 mb-20">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-display font-bold text-white mb-4 tracking-tight">Simple, transparent pricing.</h2>
+            <p className="text-text-muted text-lg">Start for free, upgrade when you need more power.</p>
           </div>
-        </section>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <Card className="p-10 bg-white/[0.02] border-white/5 flex flex-col">
+              <h3 className="text-2xl font-display font-bold text-white mb-2">Starter</h3>
+              <p className="text-text-muted mb-6">Perfect for trying out the platform.</p>
+              <div className="text-5xl font-display font-bold text-white mb-8">$0 <span className="text-lg text-text-muted font-normal">/mo</span></div>
+              
+              <ul className="space-y-4 mb-10 flex-1">
+                {[
+                  '3 Projects per month',
+                  'Text ingestion only',
+                  'Standard social assets',
+                  'Basic templates'
+                ].map((feature, i) => (
+                  <li key={i} className="flex items-center gap-3 text-text-muted">
+                    <CheckCircle2 size={18} className="text-white/30" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              <Link to="/signup" className="w-full">
+                <Button variant="secondary" className="w-full">Get Started</Button>
+              </Link>
+            </Card>
+
+            <Card className="p-10 bg-gradient-to-b from-white/[0.08] to-white/[0.02] border-accent-primary/30 relative flex flex-col">
+              <div className="absolute top-0 right-10 -translate-y-1/2 px-3 py-1 bg-accent-primary text-white text-xs font-bold uppercase tracking-wider rounded-full">
+                Most Popular
+              </div>
+              <h3 className="text-2xl font-display font-bold text-white mb-2">Creator Pro</h3>
+              <p className="text-text-muted mb-6">For serious creators and agencies.</p>
+              <div className="text-5xl font-display font-bold text-white mb-8">$29 <span className="text-lg text-text-muted font-normal">/mo</span></div>
+              
+              <ul className="space-y-4 mb-10 flex-1">
+                {[
+                  'Unlimited Projects',
+                  'Video & Audio uploads',
+                  'YouTube link ingestion',
+                  'Brand Kit integration',
+                  'Priority support'
+                ].map((feature, i) => (
+                  <li key={i} className="flex items-center gap-3 text-text-muted">
+                    <CheckCircle2 size={18} className="text-accent-primary" />
+                    <span className="text-white">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link to="/signup" className="w-full">
+                <Button className="w-full">Upgrade to Pro</Button>
+              </Link>
+            </Card>
+          </div>
+        </div>
       </main>
 
-      {/* Footer */}
-      <footer style={{ borderTop: '1px solid hsl(var(--border-muted))', padding: '2rem', textAlign: 'center', color: 'hsl(var(--text-dim))', fontSize: '0.9rem' }}>
-        &copy; {new Date().getFullYear()} ViralOps Inc. All rights reserved.
+      <footer className="py-8 border-t border-white/5 text-center text-sm text-text-dim">
+        <p>&copy; {new Date().getFullYear()} ViralOps Inc. All rights reserved.</p>
       </footer>
     </div>
   );
