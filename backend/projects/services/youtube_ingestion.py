@@ -337,6 +337,32 @@ def ingest_youtube_source(source_input) -> dict:
           - transcript_retrieved_at
           - transcript_preview
     """
+    if os.getenv('E2E_MOCK') == '1':
+        logger.info("E2E_MOCK is set. Returning mock YouTube transcript.")
+        from django.utils import timezone
+        source_input.text_content = "This is a mock YouTube transcript for E2E testing. The user is uploading a video and we are extracting the transcript. This transcript contains several viral hooks and moments that the AI will detect."
+        source_input.transcript_source = "youtube"
+        source_input.transcript_length = len(source_input.text_content)
+        source_input.transcript_validation_status = "PASS"
+        source_input.transcript_retrieval_method = "mock-e2e"
+        source_input.transcript_retrieved_at = timezone.now()
+        source_input.transcript_preview = source_input.text_content[:100]
+        source_input.save(update_fields=[
+            "text_content",
+            "transcript_source",
+            "transcript_length",
+            "transcript_validation_status",
+            "transcript_retrieval_method",
+            "transcript_retrieved_at",
+            "transcript_preview",
+        ])
+        return {
+            "status": "PASS",
+            "length": source_input.transcript_length,
+            "transcript_preview": source_input.transcript_preview,
+            "telemetry": []
+        }
+
     url = source_input.source_url
     video_id = _extract_video_id(url)
 

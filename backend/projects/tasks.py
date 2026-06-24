@@ -168,6 +168,12 @@ def process_source_input(self, source_input_id):
         job.status = 'RUNNING'
         job.save()
 
+    if project.status == 'COMPLETED' and GeneratedAsset.objects.filter(project=project).exists():
+        logger.info(f"Project {project.id} is already completed. Skipping process_source_input.")
+        job.status = 'COMPLETED'
+        job.save()
+        return
+
     source_input.status = 'PROCESSING'
     source_input.save()
     
@@ -489,6 +495,15 @@ def retry_ai_generation(self, source_input_id):
                     return
             except Exception as e:
                 logger.warning(f"Failed to acquire Redis lock: {e}")
+                
+        if project.status == 'COMPLETED' and GeneratedAsset.objects.filter(project=project).exists():
+            logger.info(f"Project {project.id} is already completed. Skipping retry_ai_generation.")
+            if lock_acquired and redis_client:
+                try:
+                    redis_client.delete(lock_key)
+                except Exception:
+                    pass
+            return
         
         # We assume Steps 1 and 2 are done. We just run 3, 4, and 5.
         

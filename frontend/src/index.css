@@ -6,10 +6,10 @@
   --font-sans: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* ViralOps V3 Color System */
+  /* ViralOps V3 Color System - Minimal Premium SaaS */
   --color-bg-base: #0A0A0A;
-  --color-bg-surface: #121212;
-  --color-bg-elevated: #1A1A1A;
+  --color-bg-surface: #111111;
+  --color-bg-elevated: #171717;
   
   --color-accent-primary: #6366F1;
   --color-accent-secondary: #818CF8;
@@ -19,12 +19,12 @@
   --color-text-muted: #A1A1AA;
   --color-text-dim: #71717A;
   
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
 
   --color-glass-border: rgba(255, 255, 255, 0.08);
-  --color-glass-fill: rgba(18, 18, 18, 0.65);
+  --color-glass-fill: rgba(17, 17, 17, 0.65);
 }
 
 @layer base {

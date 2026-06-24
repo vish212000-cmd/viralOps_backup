@@ -3,13 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, Circle, Loader2, Sparkles, FileText, Database, Wand2, PlayCircle } from 'lucide-react';
 import { cn } from '../utils/cn';
 
-interface PipelineStage {
+interface ContentStage {
   id: string;
   label: string;
   icon: React.ElementType;
 }
 
-const STAGES: PipelineStage[] = [
+const STAGES: ContentStage[] = [
   { id: 'received', label: 'Source Received', icon: Database },
   { id: 'transcribing', label: 'Transcribing', icon: FileText },
   { id: 'cleaning', label: 'Cleaning Data', icon: Sparkles },
@@ -19,7 +19,7 @@ const STAGES: PipelineStage[] = [
   { id: 'ready', label: 'Ready', icon: CheckCircle2 }
 ];
 
-export function AIPipelineVisualizer({ currentStageId = 'transcribing' }: { currentStageId?: string }) {
+export function AIContentVisualizer({ currentStageId = 'transcribing' }: { currentStageId?: string }) {
   const currentIndex = STAGES.findIndex(s => s.id === currentStageId);
   const activeIndex = currentIndex === -1 ? 0 : currentIndex;
 
@@ -52,7 +52,7 @@ export function AIPipelineVisualizer({ currentStageId = 'transcribing' }: { curr
                 </div>
               )}
 
-              {/* Stage Node */}
+              {/* Stage Element */}
               <motion.div 
                 layout
                 initial={{ scale: 0.8, opacity: 0.5 }}

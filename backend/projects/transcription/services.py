@@ -219,6 +219,10 @@ def transcribe_source_input(source_input):
     # Video/Audio file transcription
     # ----------------------------------------------------------------
     if provider == 'none':
+        if os.getenv('E2E_MOCK') == '1':
+            logger.info("E2E_MOCK is set. Returning mock transcription.")
+            segments = [{"start": 0, "end": 10, "speaker": "Speaker 1", "text": "This is a mocked transcription for E2E testing."}]
+            return "This is a mocked transcription for E2E testing.", "This is a mocked transcription for E2E testing.", segments, 10
         raise TranscriptionError(
             "No transcription provider configured (OPENAI_API_KEY or ASSEMBLYAI_API_KEY required). "
             "Cannot transcribe VIDEO/AUDIO without a real provider."

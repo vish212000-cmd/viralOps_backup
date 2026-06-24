@@ -451,11 +451,38 @@ class AdminOpsViewSet(viewsets.ViewSet):
 
     @decorators.action(detail=False, methods=['get'])
     def dashboard_summary(self, request):
+        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        
         total_users = User.objects.count()
         total_orgs = Organization.objects.count()
         total_projects = Project.objects.count()
+        projects_created_today = Project.objects.filter(created_at__gte=today_start).count()
+        projects_processing = Project.objects.filter(status='PROCESSING').count()
+        projects_completed = Project.objects.filter(status='COMPLETED').count()
+        projects_failed = Project.objects.filter(status='FAILED').count()
+        
         total_jobs = ProcessingJob.objects.count()
         failed_jobs = ProcessingJob.objects.filter(status='FAILED').count()
+
+        # Queue Depth
+        queue_depth = ProcessingJob.objects.filter(status='PENDING').count()
+        
+        # Stuck Projects > 15 Minutes
+        fifteen_mins_ago = timezone.now() - timezone.timedelta(minutes=15)
+        stuck_projects = Project.objects.filter(status__in=['PENDING', 'PROCESSING'], updated_at__lt=fifteen_mins_ago).count()
+        
+        # Celery Failures (alias for failed jobs but distinct metric as requested)
+        celery_failures = failed_jobs
+        
+        # Redis Failures
+        redis_failures = 0
+        try:
+            import redis
+            from django.conf import settings
+            client = redis.Redis.from_url(getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0'))
+            client.ping()
+        except Exception:
+            redis_failures = 1
 
         # Usage aggregations
         transcription_usage = UsageEvent.objects.filter(event_type='TRANSCRIPTION_MINUTES').aggregate(total=models.Sum('quantity'))['total'] or 0
@@ -465,29 +492,78 @@ class AdminOpsViewSet(viewsets.ViewSet):
         total_sources = SourceInput.objects.count()
         completed_sources = SourceInput.objects.filter(status='COMPLETED').count()
         transcript_success_rate = round((completed_sources / total_sources * 100), 1) if total_sources > 0 else 0
+        
         youtube_total = SourceInput.objects.filter(type='YOUTUBE').count()
+        youtube_transcript_errors = SourceInput.objects.filter(type='YOUTUBE', transcript_validation_status='FAIL').count()
+        
         youtube_completed = SourceInput.objects.filter(type='YOUTUBE', status='COMPLETED').count()
         youtube_success_rate = round((youtube_completed / youtube_total * 100), 1) if youtube_total > 0 else 0
+        
         pdf_total = SourceInput.objects.filter(type='PDF').count()
         pdf_completed = SourceInput.objects.filter(type='PDF', status='COMPLETED').count()
         pdf_success_rate = round((pdf_completed / pdf_total * 100), 1) if pdf_total > 0 else 0
 
-        # Moments
+        # Moments & Assets Success Rates
         total_moments = Moment.objects.count()
         total_assets = GeneratedAsset.objects.count()
+        
+        # A project is considered successful at moment detection if it has at least one moment
+        projects_with_moments = Project.objects.filter(moments__isnull=False).distinct().count()
+        moment_detection_success_rate = round((projects_with_moments / total_projects * 100), 1) if total_projects > 0 else 0
+        
+        # A project is considered successful at asset generation if it has at least one generated asset
+        projects_with_assets = Project.objects.filter(assets__isnull=False).distinct().count()
+        # Denominator here could be total_projects or projects_with_moments. Let's use projects_with_moments, or just total_projects.
+        # Actually total_projects since some projects don't have moments but still generate assets from the full transcript.
+        asset_generation_success_rate = round((projects_with_assets / total_projects * 100), 1) if total_projects > 0 else 0
+
+        # Average Processing Time
+        completed_jobs_qs = ProcessingJob.objects.filter(status='COMPLETED')
+        durations = []
+        for job in completed_jobs_qs:
+            if job.updated_at and job.created_at:
+                durations.append((job.updated_at - job.created_at).total_seconds())
+        average_processing_time = round(sum(durations) / len(durations), 1) if durations else 0.0
+
+        # NVIDIA API Errors
+        from django.db.models import Q
+        nvidia_api_errors = ProcessingJob.objects.filter(
+            Q(status='FAILED') | Q(status='RETRYING'),
+            Q(error_log__icontains='Nvidia') | Q(error_message__icontains='Nvidia') | Q(error_type__icontains='quota')
+        ).count()
 
         return Response({
             'total_users': total_users,
             'total_organizations': total_orgs,
             'total_projects': total_projects,
+            'projects_created_today': projects_created_today,
+            'projects_processing': projects_processing,
+            'projects_completed': projects_completed,
+            'projects_failed': projects_failed,
+            
             'total_jobs': total_jobs,
             'failed_jobs': failed_jobs,
+            'average_processing_time': average_processing_time,
+            
+            'queue_depth': queue_depth,
+            'stuck_projects': stuck_projects,
+            'celery_failures': celery_failures,
+            'redis_failures': redis_failures,
+            
             'usage_transcription_minutes': transcription_usage,
             'usage_ai_generations': ai_usage,
+            
             'total_sources': total_sources,
             'transcript_success_rate': transcript_success_rate,
+            'moment_detection_success_rate': moment_detection_success_rate,
+            'asset_generation_success_rate': asset_generation_success_rate,
+            
             'youtube_success_rate': youtube_success_rate,
             'pdf_success_rate': pdf_success_rate,
+            
+            'nvidia_api_errors': nvidia_api_errors,
+            'youtube_transcript_errors': youtube_transcript_errors,
+            
             'total_moments': total_moments,
             'total_assets': total_assets,
         })

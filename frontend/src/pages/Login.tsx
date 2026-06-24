@@ -27,6 +27,7 @@ export default function Login() {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [countdown]);
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {

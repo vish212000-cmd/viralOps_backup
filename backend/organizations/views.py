@@ -120,6 +120,30 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         
         return Response({'message': 'Invitation sent successfully.'}, status=status.HTTP_201_CREATED)
 
+    @decorators.action(detail=True, methods=['get', 'put', 'patch'])
+    def brand_kit(self, request, pk=None):
+        org = self.get_object()
+        from organizations.models import BrandKit
+        from projects.serializers import BrandKitSerializer
+        
+        brand_kit, created = BrandKit.objects.get_or_create(organization=org)
+        
+        if request.method == 'GET':
+            serializer = BrandKitSerializer(brand_kit)
+            return Response(serializer.data)
+            
+        elif request.method in ['PUT', 'PATCH']:
+            # Verify request user is ADMIN or SUPER_ADMIN
+            user_membership = get_object_or_404(Membership, user=request.user, organization=org)
+            if user_membership.role not in ['ADMIN', 'SUPER_ADMIN'] and not request.user.is_superuser:
+                return Response({'detail': 'Only admins can update the Brand Kit.'}, status=status.HTTP_403_FORBIDDEN)
+                
+            serializer = BrandKitSerializer(brand_kit, data=request.data, partial=(request.method == 'PATCH'))
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 class AcceptWorkspaceInviteView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 

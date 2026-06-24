@@ -53,6 +53,21 @@ def generate_social_assets_batch(
     Generate social-ready assets for multiple moments in a single API call.
     Delegates to the active AI provider.
     """
+    import os
+    if os.getenv('E2E_MOCK') == '1':
+        res = {}
+        for m in moments:
+            res[str(m['id'])] = {
+                'hooks': ['Mock Hook 1', 'Mock Hook 2'],
+                'titles': ['Mock Title 1', 'Mock Title 2'],
+                'captions': ['Mock Caption 1', 'Mock Caption 2'],
+                'ctas': ['Mock CTA 1'],
+                'hashtags': ['#mock', '#e2e'],
+                'thumbnail_copy': ['Mock Thumbnail'],
+                'scripts': [{'platform': 'MULTI', 'script': 'Mock Script 1'}]
+            }
+        return res
+        
     provider = get_ai_provider()
     return provider.generate_social_assets_batch(
         title=title,

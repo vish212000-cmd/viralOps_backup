@@ -1,0 +1,6 @@
+{
+  "BRAND_KIT_PERSISTENCE": {
+    "status": "FAIL",
+    "evidence": {
+      "api_status": 400,
+      "response": 

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from organizations.models import Organization, Membership
+from organizations.models import Organization, Membership, BrandKit
 from .models import (
     Project, SourceInput, TranscriptRecord, ProcessingJob,
     GeneratedAsset, GeneratedAssetVersion, Template, MemoryRecord,
@@ -15,10 +15,18 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ('id', 'username', 'email', 'first_name', 'last_name')
 
+class BrandKitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BrandKit
+        fields = ('id', 'brand_name', 'brand_voice', 'audience', 'cta', 'hashtags', 'examples', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'created_at', 'updated_at')
+
 class OrganizationSerializer(serializers.ModelSerializer):
+    brand_kit = BrandKitSerializer(read_only=True)
+
     class Meta:
         model = Organization
-        fields = ('id', 'name', 'slug', 'created_at')
+        fields = ('id', 'name', 'slug', 'brand_kit', 'created_at')
         read_only_fields = ('slug',)
 
 class MembershipSerializer(serializers.ModelSerializer):

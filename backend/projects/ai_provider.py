@@ -592,16 +592,35 @@ class NvidiaProvider(AIProvider):
         }
         import time
         start_time = time.time()
-        response = requests.post(
-            "https://integrate.api.nvidia.com/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=300
-        )
+        
+        try:
+            response = requests.post(
+                "https://integrate.api.nvidia.com/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=300
+            )
+            response.raise_for_status()
+            data = response.json()
+        except requests.exceptions.Timeout:
+            logger.error("NVIDIA API timed out after 300s")
+            raise RuntimeError("NVIDIA API timed out")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"NVIDIA API request failed: {e}")
+            raise RuntimeError(f"NVIDIA API request failed: {str(e)}")
+        except ValueError as e:
+            logger.error(f"NVIDIA API returned invalid JSON: {e}")
+            raise RuntimeError(f"NVIDIA API returned invalid JSON: {str(e)}")
+            
         logger.info(f"NVIDIA TIME: {time.time() - start_time}")
-        response.raise_for_status()
-        data = response.json()
-        text = data["choices"][0]["message"]["content"].strip()
+        
+        choices = data.get("choices", [])
+        if not choices:
+            raise RuntimeError("NVIDIA API returned empty response choices")
+            
+        text = choices[0].get("message", {}).get("content", "").strip()
+        if not text:
+            raise RuntimeError("NVIDIA API returned empty message content")
         
         # Robustly extract JSON block if conversational text surrounds it
         if "```json" in text:
@@ -701,7 +720,14 @@ You MUST return a JSON object with the exact keys:
 Return only valid JSON. Do not include markdown code blocks.
 """
         text = self._call_nvidia(prompt)
-        result = json.loads(text)
+        try:
+            result = json.loads(text)
+            assert isinstance(result, dict), "NVIDIA AI response must be a JSON dictionary"
+            assert len(result.keys()) > 0, "NVIDIA AI response dictionary cannot be empty"
+        except (json.decoder.JSONDecodeError, AssertionError) as e:
+            logger.error(f"[NvidiaProvider] generate_social_assets JSON parsing failed: {e}")
+            raise RuntimeError(f"NVIDIA AI returned invalid JSON format: {str(e)}")
+            
         logger.info(f"[NvidiaProvider] Generated social assets for '{title[:50]}'")
         return result
 
@@ -776,6 +802,8 @@ Do not include markdown code blocks.
         text = self._call_nvidia(prompt)
         try:
             result = json.loads(text)
+            assert isinstance(result, dict), "NVIDIA AI response must be a JSON dictionary"
+            assert len(result.keys()) > 0, "NVIDIA AI response dictionary cannot be empty"
             normalized = {}
             for k, v in result.items():
                 numeric_k = "".join(filter(str.isdigit, k))
@@ -815,7 +843,12 @@ Return a single valid JSON object with these exact keys:
 Return only valid JSON.
 """
         text = self._call_nvidia(prompt)
-        data = json.loads(text)
+        try:
+            data = json.loads(text)
+        except json.decoder.JSONDecodeError as e:
+            logger.error(f"[NvidiaProvider] run_content_intelligence JSON parsing failed: {e}")
+            return {}
+            
         data['viral_score'] = max(0, min(100, int(data.get('viral_score', 50))))
         logger.info(f"[NvidiaProvider] Content intelligence complete for project {project_id}")
         return data
@@ -848,7 +881,12 @@ Return a JSON array with this exact structure:
 Return only valid JSON array.
 """
         text = self._call_nvidia(prompt)
-        moments = json.loads(text)
+        try:
+            moments = json.loads(text)
+        except json.decoder.JSONDecodeError as e:
+            logger.error(f"[NvidiaProvider] detect_moments JSON parsing failed: {e}")
+            return []
+            
         if not isinstance(moments, list):
             return []
         logger.info(f"[NvidiaProvider] Detected {len(moments)} moments")

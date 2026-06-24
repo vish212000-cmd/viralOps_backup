@@ -16,10 +16,29 @@ interface SummaryStats {
   total_users: number;
   total_organizations: number;
   total_projects: number;
+  projects_created_today: number;
+  projects_processing: number;
+  projects_completed: number;
+  projects_failed: number;
   total_jobs: number;
   failed_jobs: number;
+  average_processing_time: number;
   usage_transcription_minutes: number;
   usage_ai_generations: number;
+  total_sources: number;
+  transcript_success_rate: number;
+  moment_detection_success_rate: number;
+  asset_generation_success_rate: number;
+  youtube_success_rate: number;
+  pdf_success_rate: number;
+  nvidia_api_errors: number;
+  youtube_transcript_errors: number;
+  total_moments: number;
+  total_assets: number;
+  queue_depth: number;
+  stuck_projects: number;
+  celery_failures: number;
+  redis_failures: number;
 }
 
 interface AdminAnalyticsSummary {
@@ -169,6 +188,94 @@ export default function AdminDashboard() {
               </div>
             </Card>
           ))}
+        </section>
+
+        {/* Production Health Stats */}
+        <section style={{ marginBottom: '2.5rem' }}>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Sparkles size={20} color="hsl(var(--accent-primary))" /> Production Health
+          </h2>
+          <div className="bento-grid">
+            <Card style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Folder size={16} /> Projects Status
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Created Today</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{summary.projects_created_today}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Processing</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'hsl(var(--accent-indigo))' }}>{summary.projects_processing}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Completed</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'hsl(var(--success))' }}>{summary.projects_completed}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Failed</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'hsl(var(--danger))' }}>{summary.projects_failed}</div>
+                </div>
+              </div>
+            </Card>
+            
+            <Card style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <CheckCircle size={16} /> Content Success Rates
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Transcript Extracted</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{summary.transcript_success_rate}%</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Moment Detection</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{summary.moment_detection_success_rate}%</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Asset Generation</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{summary.asset_generation_success_rate}%</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Avg Process Time</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{summary.average_processing_time}s</div>
+                </div>
+              </div>
+            </Card>
+
+            <Card style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'hsl(var(--danger))' }}>
+                <AlertOctagon size={16} /> Critical Errors & Health
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))' }}>NVIDIA API Errors</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: summary.nvidia_api_errors > 0 ? 'hsl(var(--danger))' : 'hsl(var(--text-primary))' }}>{summary.nvidia_api_errors}</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))' }}>YouTube Transcript Errors</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: summary.youtube_transcript_errors > 0 ? 'hsl(var(--danger))' : 'hsl(var(--text-primary))' }}>{summary.youtube_transcript_errors}</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))' }}>Redis Failures</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: summary.redis_failures > 0 ? 'hsl(var(--danger))' : 'hsl(var(--text-primary))' }}>{summary.redis_failures}</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))' }}>Celery Failures</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: summary.celery_failures > 0 ? 'hsl(var(--danger))' : 'hsl(var(--text-primary))' }}>{summary.celery_failures}</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))' }}>Stuck Projects (&gt;15m)</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: summary.stuck_projects > 0 ? 'hsl(var(--danger))' : 'hsl(var(--text-primary))' }}>{summary.stuck_projects}</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))' }}>Queue Depth</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: summary.queue_depth > 10 ? 'hsl(var(--warning))' : 'hsl(var(--text-primary))' }}>{summary.queue_depth}</div>
+                </div>
+              </div>
+            </Card>
+          </div>
         </section>
 
         {/* Health status & DB status */}

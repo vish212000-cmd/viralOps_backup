@@ -36,14 +36,15 @@ const lazyImportWithRecovery = (importPromise: () => Promise<any>, chunkName: st
 const LandingPage = lazyImportWithRecovery(() => import('./pages/LandingPage'), 'LandingPage');
 const Login = lazyImportWithRecovery(() => import('./pages/Login'), 'Login');
 const Signup = lazyImportWithRecovery(() => import('./pages/Signup'), 'Signup');
-const Dashboard = lazyImportWithRecovery(() => import('./pages/Dashboard'), 'Dashboard');
+const Dashboard = lazyImportWithRecovery(() => import('./pages/Dashboard'), 'Dashboard'); // This acts as Overview
 const ProjectDetails = lazyImportWithRecovery(() => import('./pages/ProjectDetails'), 'ProjectDetails');
 const MomentsWorkspace = lazyImportWithRecovery(() => import('./pages/MomentsWorkspace'), 'MomentsWorkspace');
-const Templates = lazyImportWithRecovery(() => import('./pages/Templates'), 'Templates');
-const Settings = lazyImportWithRecovery(() => import('./pages/AdminDashboard'), 'Settings'); // Reusing AdminDashboard as placeholder for unified Settings
+const BrandKit = lazyImportWithRecovery(() => import('./pages/BrandKit'), 'BrandKit');
+const Performance = lazyImportWithRecovery(() => import('./pages/Performance'), 'Performance');
+const Settings = lazyImportWithRecovery(() => import('./pages/Settings'), 'Settings'); 
 const Billing = lazyImportWithRecovery(() => import('./pages/Billing'), 'Billing');
-const Analytics = lazyImportWithRecovery(() => import('./pages/Analytics'), 'Analytics');
-const ContentLibrary = lazyImportWithRecovery(() => import('./pages/Dashboard'), 'ContentLibrary'); // Placeholder
+const MyContent = lazyImportWithRecovery(() => import('./pages/MyContent'), 'MyContent'); 
+const AdminDashboard = lazyImportWithRecovery(() => import('./pages/AdminDashboard'), 'AdminDashboard');
 const Policies = lazyImportWithRecovery(() => import('./pages/Policies'), 'Policies');
 const GoogleCallback = lazyImportWithRecovery(() => import('./pages/GoogleCallback'), 'GoogleCallback');
 const VerifyEmail = lazyImportWithRecovery(() => import('./pages/VerifyEmail'), 'VerifyEmail');
@@ -122,11 +123,12 @@ function App() {
                   </PrivateRoute>
                 }>
                   <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/content" element={<ContentLibrary />} />
-                  <Route path="/templates" element={<Templates />} />
-                  <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/content" element={<MyContent />} />
+                  <Route path="/brand-kit" element={<BrandKit />} />
+                  <Route path="/performance" element={<Performance />} />
                   <Route path="/billing" element={<Billing />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/admin" element={<AdminDashboard />} />
                   <Route path="/projects/:projectId" element={<ProjectDetails />} />
                   <Route path="/projects/:projectId/moments" element={<MomentsWorkspace />} />
                 </Route>

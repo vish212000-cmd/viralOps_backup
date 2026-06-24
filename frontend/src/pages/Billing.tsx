@@ -356,12 +356,48 @@ export default function Billing() {
     printWindow.print();
   };
 
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+
+  const hardcodedPlans = [
+    {
+      id: 1,
+      name: 'Starter',
+      price_monthly: '799',
+      price_yearly: '7990',
+      price_usd_monthly: '10',
+      price_usd_yearly: '100',
+      max_projects: 3,
+      max_generations_per_month: 25,
+      features: ['Up to 3 Active Projects', '25 Content Assets / month', 'Standard Support']
+    },
+    {
+      id: 2,
+      name: 'Creator',
+      price_monthly: '1999',
+      price_yearly: '19990',
+      price_usd_monthly: '24',
+      price_usd_yearly: '240',
+      max_projects: 10,
+      max_generations_per_month: 100,
+      features: ['Up to 10 Active Projects', '100 Content Assets / month', 'Priority Email Support', 'Custom Brand Tone']
+    },
+    {
+      id: 3,
+      name: 'Growth',
+      price_monthly: '4999',
+      price_yearly: '49990',
+      price_usd_monthly: '60',
+      price_usd_yearly: '600',
+      max_projects: 999999,
+      max_generations_per_month: 999999,
+      features: ['Unlimited Active Projects', 'Unlimited Content Assets', 'Dedicated Account Manager', 'Custom Domain']
+    }
+  ];
+
   if (loading) {
     return (
       <div className="flex-1 w-full flex flex-col relative z-10 max-h-[100dvh] overflow-y-auto overflow-x-hidden">
-        {/* Ambient Top Glow */}
         <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-accent-primary/5 to-transparent pointer-events-none -z-10" />
-
         <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-10 flex items-center justify-center" style={{ minHeight: '60vh' }}>
           <Loader2 className="loading-spinner" size={40} />
         </div>
@@ -369,7 +405,6 @@ export default function Billing() {
     );
   }
 
-  // Quotas Calculations
   const activePlanName = subscription?.plan?.name || 'Free Trial';
   const subStatus = subscription?.status || 'ACTIVE';
   const maxProjects = usage?.limit_projects || 3;
@@ -381,20 +416,19 @@ export default function Billing() {
   const gensPercent = Math.min((currentGenerations / maxGenerations) * 100, 100);
 
   return (
-    <div className="flex-1 w-full flex flex-col relative z-10 max-h-[100dvh] overflow-y-auto overflow-x-hidden">
-      {/* Ambient Top Glow */}
+    <div className="flex-1 w-full flex flex-col relative z-10 max-h-[100dvh] overflow-y-auto overflow-x-hidden bg-bg-base">
       <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-accent-primary/5 to-transparent pointer-events-none -z-10" />
 
       <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-10">
-        <header style={{ marginBottom: '2.5rem' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Billing & Subscription</h1>
-          <p style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem', marginTop: '0.25rem' }}>
-            Manage your subscription plan, track your content quotas, and access invoices.
+        <header className="mb-10 text-center">
+          <h1 className="text-3xl font-display font-semibold text-white tracking-tight">Billing & Subscription</h1>
+          <p className="text-text-muted text-sm mt-2 max-w-xl mx-auto">
+            Manage your subscription plan, track your content quotas, and access invoices. Select the plan that fits your growth.
           </p>
         </header>
 
         {subStatus !== 'ACTIVE' && (
-          <div style={{ background: 'hsl(var(--warning) / 0.1)', border: '1px solid hsl(var(--warning) / 0.3)', padding: '1rem', borderRadius: '12px', color: 'hsl(var(--warning))', display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '2rem' }}>
+          <div className="bg-warning/10 border border-warning/30 p-4 rounded-xl text-warning flex items-center gap-3 mb-8">
             <AlertTriangle size={20} />
             <span>
               Your subscription is currently <strong>{subStatus}</strong>. Upgrade or complete payment to reactivate active quota limits.
@@ -402,79 +436,95 @@ export default function Billing() {
           </div>
         )}
 
-        {/* Quota Limits Progress Cards */}
-        <section className="bento-grid" style={{ marginBottom: '2.5rem' }}>
-          <Card style={{ padding: '2rem' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1.25rem', color: 'hsl(var(--text-muted))', display: 'flex', justifyContent: 'space-between' }}>
-              <span>Active Content Projects</span>
-              <span style={{ color: 'hsl(var(--text-primary))' }}>{currentProjects} / {maxProjects === 999999 ? 'Unlimited' : maxProjects}</span>
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+          <Card className="p-8 border border-glass-border bg-bg-surface">
+            <h3 className="text-lg font-semibold mb-4 text-text-muted flex justify-between">
+              <span>Active Projects</span>
+              <span className="text-white">{currentProjects} / {maxProjects === 999999 ? 'Unlimited' : maxProjects}</span>
             </h3>
-            <div style={{ width: '100%', height: '8px', background: 'hsl(var(--border-muted))', borderRadius: '99px', overflow: 'hidden', marginBottom: '0.75rem' }}>
-              <div style={{ width: `${maxProjects === 999999 ? 0 : projectsPercent}%`, height: '100%', background: 'linear-gradient(90deg, hsl(var(--accent-primary)), hsl(var(--accent-secondary)))', borderRadius: '99px' }} />
+            <div className="w-full h-2 bg-glass-border rounded-full overflow-hidden mb-3">
+              <div className="h-full bg-gradient-to-r from-accent-primary to-accent-secondary" style={{ width: `${maxProjects === 999999 ? 0 : projectsPercent}%` }} />
             </div>
-            <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-dim))' }}>
-              Total projects available in your workspace.
-            </p>
+            <p className="text-sm text-text-dim">Total projects available in your workspace.</p>
           </Card>
 
-          <Card style={{ padding: '2rem' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1.25rem', color: 'hsl(var(--text-muted))', display: 'flex', justifyContent: 'space-between' }}>
-              <span>Content Assets Generated</span>
-              <span style={{ color: 'hsl(var(--text-primary))' }}>{currentGenerations} / {maxGenerations === 999999 ? 'Unlimited' : maxGenerations}</span>
+          <Card className="p-8 border border-glass-border bg-bg-surface">
+            <h3 className="text-lg font-semibold mb-4 text-text-muted flex justify-between">
+              <span>Content Assets</span>
+              <span className="text-white">{currentGenerations} / {maxGenerations === 999999 ? 'Unlimited' : maxGenerations}</span>
             </h3>
-            <div style={{ width: '100%', height: '8px', background: 'hsl(var(--border-muted))', borderRadius: '99px', overflow: 'hidden', marginBottom: '0.75rem' }}>
-              <div style={{ width: `${maxGenerations === 999999 ? 0 : gensPercent}%`, height: '100%', background: 'linear-gradient(90deg, hsl(var(--accent-primary)), hsl(var(--accent-secondary)))', borderRadius: '99px' }} />
+            <div className="w-full h-2 bg-glass-border rounded-full overflow-hidden mb-3">
+              <div className="h-full bg-gradient-to-r from-accent-primary to-accent-secondary" style={{ width: `${maxGenerations === 999999 ? 0 : gensPercent}%` }} />
             </div>
-            <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-dim))' }}>
-              Social assets (Hooks, Captions, Scripts) generated this month.
-            </p>
+            <p className="text-sm text-text-dim">Social assets generated this month.</p>
           </Card>
         </section>
 
-        {/* Pricing Plan Grid */}
-        <section style={{ marginBottom: '3.5rem' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1.5rem' }}>Available Subscription Plans</h2>
-          <div className="bento-grid">
-            {plans.map((p) => {
+        <section className="mb-14">
+          <div className="flex flex-col items-center mb-8">
+            <h2 className="text-2xl font-display font-semibold text-white mb-6">Choose Your Plan</h2>
+            <div className="bg-bg-surface border border-glass-border p-1 rounded-full flex items-center gap-2">
+              <button 
+                onClick={() => setBillingCycle('monthly')}
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${billingCycle === 'monthly' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-white'}`}
+              >
+                Monthly
+              </button>
+              <button 
+                onClick={() => setBillingCycle('yearly')}
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${billingCycle === 'yearly' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-white'}`}
+              >
+                Annually
+                <span className="bg-success/20 text-success text-xs px-2 py-0.5 rounded-full font-bold">Save 16%</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {hardcodedPlans.map((p) => {
               const isCurrent = p.name === activePlanName;
+              const isPopular = p.name === 'Creator';
+              const priceINR = billingCycle === 'monthly' ? p.price_monthly : p.price_yearly;
+              const priceUSD = billingCycle === 'monthly' ? p.price_usd_monthly : p.price_usd_yearly;
+
               return (
                 <Card 
                   key={p.id} 
-                  style={{ 
-                    padding: '2.5rem', 
-                    border: isCurrent ? '2px solid hsl(var(--accent-primary))' : '1px solid hsl(var(--border-muted))',
-                    position: 'relative'
-                  }}
+                  className={`p-8 relative flex flex-col ${isPopular ? 'border-accent-primary shadow-2xl shadow-accent-primary/10 bg-bg-surface/80' : 'border-glass-border bg-bg-surface/50'}`}
                 >
-                  {isCurrent && (
-                    <Badge status="Active Plan" style={{ position: 'absolute', top: '1rem', right: '1rem' }} />
+                  {isPopular && (
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-accent-primary text-white text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wider">
+                      Most Popular
+                    </div>
                   )}
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem' }}>{p.name}</h3>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem', marginBottom: '1.5rem' }}>
-                    <span style={{ fontSize: '2.25rem', fontWeight: 800 }}>₹{parseInt(p.price_monthly)}</span>
-                    <span style={{ color: 'hsl(var(--text-muted))', fontSize: '0.9rem' }}>/ mo</span>
+                  {isCurrent && (
+                    <Badge status="Active Plan" className="absolute top-4 right-4" />
+                  )}
+                  
+                  <h3 className="text-xl font-display font-bold text-white mb-2">{p.name}</h3>
+                  
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span className="text-4xl font-display font-bold text-white">₹{priceINR}</span>
+                    <span className="text-text-muted text-sm">/ {billingCycle === 'monthly' ? 'mo' : 'yr'}</span>
+                  </div>
+                  <div className="text-text-dim text-sm mb-6">
+                    ~ ${priceUSD} USD / {billingCycle === 'monthly' ? 'mo' : 'yr'}
                   </div>
 
-                  <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 2rem 0', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.9rem', color: 'hsl(var(--text-muted))' }}>
-                    <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <CheckCircle2 size={16} color="hsl(var(--success))" /> 
-                      {p.max_projects === 999999 ? 'Unlimited Active Projects' : `Up to ${p.max_projects} Active Projects`}
-                    </li>
-                    <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <CheckCircle2 size={16} color="hsl(var(--success))" /> 
-                      {p.max_generations_per_month === 999999 ? 'Unlimited Content Assets' : `${p.max_generations_per_month} Content Assets / month`}
-                    </li>
-                    <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <CheckCircle2 size={16} color="hsl(var(--success))" /> 
-                      Priority Email Support
-                    </li>
+                  <ul className="space-y-4 mb-8 flex-1">
+                    {p.features.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-3 text-text-muted text-sm">
+                        <CheckCircle2 size={18} className="text-success shrink-0" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
                   </ul>
 
                   <Button 
-                    onClick={() => handleCheckout(p)} 
+                    onClick={() => handleCheckout(p as any)} 
                     disabled={isCurrent || submitting}
-                    variant={isCurrent ? 'secondary' : 'primary'}
-                    style={{ width: '100%', justifyContent: 'center' }}
+                    variant={isPopular && !isCurrent ? 'primary' : 'secondary'}
+                    className="w-full justify-center py-3"
                   >
                     {isCurrent ? 'Current Plan' : 'Select Plan'}
                     {!isCurrent && <ArrowRight size={16} />}
@@ -483,31 +533,34 @@ export default function Billing() {
               );
             })}
           </div>
+
           {activePlanName !== 'Free Trial' && subStatus === 'ACTIVE' && (
-            <div style={{ marginTop: '1.5rem', textAlign: 'right' }}>
-              <Button onClick={handleCancelSubscription} variant="danger" className="secondary" disabled={submitting}>
-                Cancel Active Subscription
-              </Button>
+            <div className="mt-6 text-center">
+              <button 
+                onClick={handleCancelSubscription} 
+                disabled={submitting}
+                className="text-text-dim hover:text-warning text-sm underline underline-offset-4 transition-colors"
+              >
+                Cancel Subscription
+              </button>
             </div>
           )}
         </section>
 
-        {/* GST Form & Payments History */}
-        <section className="bento-grid" style={{ marginBottom: '3rem' }}>
-          {/* GST Details Form */}
-          <Card style={{ padding: '2.5rem' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '1.25rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <Receipt size={20} color="hsl(var(--accent-primary))" />
-              Indian GST & Invoicing Info
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+          <Card className="p-8 border border-glass-border bg-bg-surface/50">
+            <h2 className="text-xl font-display font-semibold text-white mb-6 flex items-center gap-3">
+              <Receipt className="text-accent-primary" />
+              Indian GST & Invoicing
             </h2>
-            <form onSubmit={handleUpdateGSTDetails} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <form onSubmit={handleUpdateGSTDetails} className="space-y-5">
               <Input 
                 label="Registered Legal Entity Name"
-                placeholder="e.g. Acme Social Technologies Pvt Ltd"
+                placeholder="e.g. Acme Pvt Ltd"
                 value={legalName}
                 onChange={e => setLegalName(e.target.value)}
               />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="grid grid-cols-2 gap-4">
                 <Input 
                   label="GSTIN ID"
                   placeholder="e.g. 29AAAAA1111A1Z1"
@@ -529,61 +582,51 @@ export default function Billing() {
                 value={billingEmail}
                 onChange={e => setBillingEmail(e.target.value)}
               />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Billing Address</label>
+              <div>
+                <label className="block text-sm font-medium text-text-muted mb-1.5">Billing Address</label>
                 <textarea 
                   rows={3}
+                  className="w-full bg-bg-base border border-glass-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-accent-primary transition-all resize-none"
                   placeholder="Full physical address for structured invoice generation"
                   value={billingAddress}
                   onChange={e => setBillingAddress(e.target.value)}
-                  style={{ width: '100%' }}
                 />
               </div>
-              <Button type="submit" disabled={submitting} style={{ marginTop: '0.5rem', justifyContent: 'center' }}>
-                Update Invoice Details
+              <Button type="submit" disabled={submitting} className="w-full justify-center">
+                Save Details
               </Button>
             </form>
           </Card>
 
-          {/* Invoice/Payment Records */}
-          <Card style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <FileText size={20} color="hsl(var(--accent-primary))" />
-              Invoices & Billing History
+          <Card className="p-8 border border-glass-border bg-bg-surface/50 flex flex-col">
+            <h2 className="text-xl font-display font-semibold text-white mb-6 flex items-center gap-3">
+              <FileText className="text-accent-primary" />
+              Billing History
             </h2>
-            <div style={{ flex: 1, overflowY: 'auto', maxHeight: '350px' }}>
-              {!history || !history.invoices || !Array.isArray(history.invoices) || history.invoices.length === 0 ? (
-                <div style={{ textAlign: 'center', color: 'hsl(var(--text-dim))', padding: '3rem 0' }}>
-                  No payment invoices generated yet.
+            <div className="flex-1 overflow-y-auto">
+              {!history?.invoices?.length ? (
+                <div className="h-full flex flex-col items-center justify-center text-text-dim py-12">
+                  <Receipt size={48} className="mb-4 opacity-20" />
+                  <p>No invoices generated yet.</p>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div className="space-y-4">
                   {history.invoices.map((inv) => (
-                    <div 
-                      key={inv.id}
-                      style={{ 
-                        border: '1px solid hsl(var(--border-muted))', 
-                        borderRadius: '10px', 
-                        padding: '1rem', 
-                        display: 'flex', 
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}
-                    >
+                    <div key={inv.id} className="flex items-center justify-between p-4 border border-glass-border rounded-xl bg-bg-base">
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{inv.invoice_number}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-dim))', marginTop: '0.2rem' }}>
+                        <div className="font-medium text-white">{inv.invoice_number}</div>
+                        <div className="text-xs text-text-dim mt-1">
                           {new Date(inv.created_at).toLocaleDateString()} &bull; GSTIN: {inv.gstin || 'Individual'}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>₹{parseInt(inv.amount)}</span>
+                      <div className="flex items-center gap-4">
+                        <span className="font-bold text-white">₹{parseInt(inv.amount)}</span>
                         <Button 
                           onClick={() => downloadInvoice(inv)}
                           variant="secondary"
-                          style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+                          className="px-3 py-1.5 text-xs"
                         >
-                          Invoice PDF
+                          Download
                         </Button>
                       </div>
                     </div>
@@ -594,45 +637,41 @@ export default function Billing() {
           </Card>
         </section>
 
-        {/* Policies and Terms Placeholders */}
-        <footer style={{ borderTop: '1px solid hsl(var(--border-muted))', paddingTop: '2rem', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem', fontSize: '0.85rem', color: 'hsl(var(--text-dim))' }}>
-          <div>
-            &copy; 2026 ViralOps. Low PCI Scope Compliant System.
-          </div>
-          <div style={{ display: 'flex', gap: '1.5rem' }}>
-            <a href="/terms" target="_blank" style={{ color: 'inherit', textDecoration: 'none' }}>Terms of Service</a>
-            <a href="/privacy" target="_blank" style={{ color: 'inherit', textDecoration: 'none' }}>Privacy Policy</a>
-            <a href="/refund" target="_blank" style={{ color: 'inherit', textDecoration: 'none' }}>Refund and Cancellation</a>
+        <footer className="border-t border-glass-border pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-text-dim">
+          <div>&copy; 2026 ViralOps. Low PCI Scope Compliant System.</div>
+          <div className="flex gap-6">
+            <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
+            <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
+            <a href="/refund" className="hover:text-white transition-colors">Refunds</a>
           </div>
         </footer>
 
-        {/* Offline Sandbox Payment Simulation Overlay Modal */}
         {mockCheckoutData && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-            <Card style={{ maxWidth: '440px', width: '100%', padding: '2.5rem', border: '1px solid hsl(var(--warning) / 0.5)' }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'hsl(var(--warning))', display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1rem' }}>
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <Card className="max-w-md w-full p-8 border border-warning/50 bg-bg-surface shadow-2xl">
+              <h2 className="text-xl font-bold text-warning flex items-center gap-3 mb-4">
                 <AlertTriangle size={24} />
-                Sandbox Payment Simulation
+                Payment Simulation
               </h2>
-              <p style={{ fontSize: '0.9rem', color: 'hsl(var(--text-muted))', lineHeight: 1.6, marginBottom: '1.5rem' }}>
-                You are executing locally offline, or active Razorpay API Keys are not configured. We can simulate a successful Razorpay gateway callback for testing:
+              <p className="text-text-muted text-sm mb-6">
+                You are executing locally offline. We can simulate a successful Razorpay gateway callback for testing:
               </p>
-              <div style={{ background: 'hsl(var(--border-muted) / 0.3)', padding: '1rem', borderRadius: '8px', fontSize: '0.85rem', color: 'hsl(var(--text-primary))', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
-                <div><strong>Mock Subscription ID:</strong> {mockCheckoutData.subscription_id}</div>
-                <div><strong>Simulation Rate:</strong> ₹{mockCheckoutData.amount} INR</div>
+              <div className="bg-bg-base border border-glass-border p-4 rounded-lg text-sm text-white mb-6 space-y-2">
+                <div><span className="text-text-dim">ID:</span> {mockCheckoutData.subscription_id}</div>
+                <div><span className="text-text-dim">Amount:</span> ₹{mockCheckoutData.amount}</div>
               </div>
-              <div style={{ display: 'flex', gap: '1rem' }}>
+              <div className="flex gap-4">
                 <Button 
                   onClick={handleSimulateMockPayment}
-                  style={{ flex: 1, justifyContent: 'center' }}
+                  className="flex-1 justify-center"
                   disabled={submitting}
                 >
-                  Confirm Success Mock Payment
+                  Simulate Success
                 </Button>
                 <Button 
                   variant="secondary"
                   onClick={() => setMockCheckoutData(null)}
-                  style={{ justifyContent: 'center' }}
+                  className="flex-1 justify-center"
                   disabled={submitting}
                 >
                   Cancel
