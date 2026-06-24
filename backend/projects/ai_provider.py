@@ -893,11 +893,278 @@ Return only valid JSON array.
         return moments
 
 
+
+# ---------------------------------------------------------------------------
+# OpenRouter Provider
+# ---------------------------------------------------------------------------
+
+class OpenRouterProvider(AIProvider):
+    """
+    AI provider backed by OpenRouter.
+    Implements model chaining/fallback for free tier models.
+    """
+
+    def __init__(self):
+        self.api_key = os.getenv('OPENROUTER_API_KEY', '')
+        if not self.api_key:
+            raise RuntimeError("OpenRouterProvider requires OPENROUTER_API_KEY.")
+            
+        self.models = [
+            "deepseek/deepseek-chat-v3-0324:free",
+            "google/gemma-3-27b-it:free",
+            "qwen/qwen-2.5-72b-instruct:free",
+            "meta-llama/llama-3.3-70b-instruct:free"
+        ]
+        logger.info(f"[OpenRouterProvider] Initialized with models: {self.models}")
+
+    def _call_openrouter(self, prompt: str) -> str:
+        import time
+        import requests
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "HTTP-Referer": "https://viralops.app",
+            "X-Title": "ViralOps"
+        }
+        
+        last_exception = None
+        for model in self.models:
+            payload = {
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.7
+            }
+            start_time = time.time()
+            try:
+                logger.info(f"[OpenRouterProvider] Calling {model}")
+                response = requests.post(url, headers=headers, json=payload, timeout=45)
+                response.raise_for_status()
+                data = response.json()
+                text = data['choices'][0]['message']['content'].strip()
+                
+                # Strip markdown code fences
+                if text.startswith("```json"):
+                    text = text[7:]
+                if text.startswith("```"):
+                    text = text[3:]
+                if text.endswith("```"):
+                    text = text[:-3]
+                    
+                duration = time.time() - start_time
+                usage = data.get('usage', {})
+                logger.info(f"[OpenRouterProvider] {model} succeeded in {duration:.2f}s, tokens: {usage}")
+                return text.strip()
+            except Exception as e:
+                logger.warning(f"[OpenRouterProvider] {model} failed: {e}")
+                last_exception = e
+                continue
+                
+        raise last_exception or RuntimeError("All OpenRouter models failed")
+
+    # Re-use Gemini logic for prompt building, calling self._call_openrouter
+    def generate_social_assets(
+        self,
+        title: str,
+        source_type: str,
+        content_text: str,
+        memory_settings: Optional[dict] = None,
+        templates=None,
+        transcript_diagnostics: Optional[dict] = None,
+    ) -> dict:
+        from projects.services.transcript_validator import TranscriptValidationError
+
+        # YouTube gate — must have PASS diagnostics
+        if source_type == 'YOUTUBE':
+            if transcript_diagnostics is None:
+                raise TranscriptValidationError(
+                    "Gemini generation blocked: transcript_diagnostics not provided for YOUTUBE source.",
+                    diagnostics={"status": "FAIL", "failures": ["transcript_diagnostics missing"]}
+                )
+            if transcript_diagnostics.get("status") != "PASS":
+                failures = transcript_diagnostics.get("failures", ["Unknown validation failure"])
+                raise TranscriptValidationError(
+                    f"Gemini generation blocked: transcript validation status is "
+                    f"'{transcript_diagnostics.get('status')}'. Failures: {'; '.join(failures)}",
+                    diagnostics=transcript_diagnostics
+                )
+            logger.info(
+                f"[OpenRouterProvider] YouTube gate PASS — "
+                f"length={transcript_diagnostics.get('length')}, "
+                f"method={transcript_diagnostics.get('retrieval_method')}"
+            )
+
+        # Build memory/brand voice snippet
+        memory_prompt = ""
+        if memory_settings:
+        
+    def generate_social_assets_batch(
+        self,
+        title: str,
+        source_type: str,
+        moments: list[dict],
+        memory_settings: Optional[dict] = None,
+        templates=None,
+        transcript_diagnostics: Optional[dict] = None,
+    ) -> dict:
+        from projects.services.transcript_validator import TranscriptValidationError
+
+        if source_type == 'YOUTUBE':
+            if transcript_diagnostics is None:
+                raise TranscriptValidationError(
+                    "Gemini batch generation blocked: transcript_diagnostics missing.",
+                    diagnostics={"status": "FAIL", "failures": ["transcript_diagnostics missing"]}
+                )
+            if transcript_diagnostics.get("status") != "PASS":
+                failures = transcript_diagnostics.get("failures", ["Unknown validation failure"])
+                raise TranscriptValidationError(
+                    f"Gemini batch generation blocked: validation status is '{transcript_diagnostics.get('status')}'.",
+                    diagnostics=transcript_diagnostics
+                )
+
+        memory_prompt = ""
+        if memory_settings:
+        
+    def run_content_intelligence(self, project_id: int, transcript_text: str) -> dict:
+        if not transcript_text or len(transcript_text) < 100:
+            logger.warning(f"[OpenRouterProvider] Transcript too short for project {project_id}")
+            return {}
+
+        prompt = f"""
+You are a content intelligence expert. Analyze the following transcript and extract structured data.
+
+Transcript (first 6000 chars):
+{transcript_text[:6000]}
+
+Return a single valid JSON object with these exact keys:
+{{
+  "summary": "2-3 sentence summary of the main content",
+  "topics": ["topic1", "topic2", "topic3"],
+  "keywords": ["kw1", "kw2", "kw3", "kw4", "kw5", "kw6"],
+  "entities": [{{"name": "Entity Name", "type": "PERSON|BRAND|PLACE|CONCEPT"}}],
+  "emotional_moments": [{{"text": "excerpt", "emotion": "excitement|curiosity|inspiration", "intensity": 7}}],
+  "viral_score": 75
+}}
+
+Return only valid JSON.
+"""
+        text = self._call_openrouter(prompt)
+        data = json.loads(text)
+        data['viral_score'] = max(0, min(100, int(data.get('viral_score', 50))))
+        logger.info(f"[OpenRouterProvider] Content intelligence complete for project {project_id}")
+        return data
+
+
+    def detect_moments(self, transcript_text: str) -> list:
+        if not transcript_text or len(transcript_text) < 200:
+            return []
+
+        prompt = f"""
+You are an expert viral content strategist and moment detection AI.
+Analyze the following transcript and detect the most impactful moments.
+
+Transcript:
+{transcript_text[:7000]}
+
+Detect 8-15 high-value moments total (mix of categories).
+
+Return a JSON array with this exact structure:
+[
+  {{
+    "title": "Compelling moment title (max 10 words)",
+    "category": "HOOK|VIRAL|STORY|EMOTIONAL|EDUCATIONAL|CTA",
+    "score": 85,
+    "start_time": "0:45",
+    "end_time": "1:30",
+    "excerpt": "Direct quote or paraphrase from the transcript (50-120 words)"
+  }}
+]
+
+Return only valid JSON array.
+"""
+        text = self._call_openrouter(prompt)
+        moments = json.loads(text)
+        if not isinstance(moments, list):
+            return []
+        logger.info(f"[OpenRouterProvider] Detected {len(moments)} moments")
+        return moments
+
+
+
+# ---------------------------------------------------------------------------
+# Provider Router
+# ---------------------------------------------------------------------------
+
+class ProviderRouter(AIProvider):
+    """
+    Chains multiple AI providers to ensure high availability.
+    Order: NvidiaProvider -> OpenRouterProvider -> GeminiProvider
+    """
+
+    def __init__(self):
+        self.providers = []
+        
+        # 1. NVIDIA
+        if os.getenv('NVIDIA_API_KEY'):
+            try:
+                self.providers.append(NvidiaProvider())
+            except Exception as e:
+                logger.warning(f"[ProviderRouter] Failed to init NvidiaProvider: {e}")
+                
+        # 2. OpenRouter
+        if os.getenv('OPENROUTER_API_KEY'):
+            try:
+                self.providers.append(OpenRouterProvider())
+            except Exception as e:
+                logger.warning(f"[ProviderRouter] Failed to init OpenRouterProvider: {e}")
+                
+        # 3. Gemini
+        if os.getenv('GEMINI_API_KEY'):
+            try:
+                self.providers.append(GeminiProvider())
+            except Exception as e:
+                logger.warning(f"[ProviderRouter] Failed to init GeminiProvider: {e}")
+                
+        if not self.providers:
+            logger.warning("[ProviderRouter] No providers configured! Falling back to MockAIProvider.")
+            self.providers.append(MockAIProvider())
+            
+        logger.info(f"[ProviderRouter] Initialized chain: {[p.__class__.__name__ for p in self.providers]}")
+
+    def _route(self, method_name, *args, **kwargs):
+        last_exception = None
+        for provider in self.providers:
+            try:
+                logger.info(f"[ProviderRouter] Attempting {method_name} with {provider.__class__.__name__}")
+                method = getattr(provider, method_name)
+                return method(*args, **kwargs)
+            except Exception as e:
+                logger.warning(f"[ProviderRouter] {provider.__class__.__name__} failed {method_name}: {e}")
+                last_exception = e
+                continue
+        logger.error(f"[ProviderRouter] All providers failed for {method_name}")
+        if last_exception:
+            raise last_exception
+        raise RuntimeError(f"All AI providers failed for {method_name}")
+
+    def generate_social_assets(self, *args, **kwargs):
+        return self._route('generate_social_assets', *args, **kwargs)
+
+    def generate_social_assets_batch(self, *args, **kwargs):
+        return self._route('generate_social_assets_batch', *args, **kwargs)
+
+    def run_content_intelligence(self, *args, **kwargs):
+        return self._route('run_content_intelligence', *args, **kwargs)
+
+    def detect_moments(self, *args, **kwargs):
+        return self._route('detect_moments', *args, **kwargs)
+
+
 # ---------------------------------------------------------------------------
 # Provider factory
 # ---------------------------------------------------------------------------
 
 _provider_instance: Optional[AIProvider] = None
+
 
 
 def get_ai_provider() -> AIProvider:
@@ -906,8 +1173,7 @@ def get_ai_provider() -> AIProvider:
 
     Selection priority:
       1. DJANGO_TEST=1 env var (or settings.TESTING=True)  → MockAIProvider
-      2. AI_PROVIDER=nvidia env var                         → NvidiaProvider
-      3. Otherwise                                          → GeminiProvider
+      2. Otherwise                                          → ProviderRouter
     """
     global _provider_instance
     if _provider_instance is not None:
@@ -923,12 +1189,9 @@ def get_ai_provider() -> AIProvider:
     if is_test:
         logger.info("[AIProvider] Test environment detected — using MockAIProvider")
         _provider_instance = MockAIProvider()
-    elif os.getenv('AI_PROVIDER') == 'nvidia':
-        logger.info("[AIProvider] Production environment — using NvidiaProvider")
-        _provider_instance = NvidiaProvider()
     else:
-        logger.info("[AIProvider] Production environment — using GeminiProvider")
-        _provider_instance = GeminiProvider()
+        logger.info("[AIProvider] Production environment — using ProviderRouter")
+        _provider_instance = ProviderRouter()
 
     return _provider_instance
 
