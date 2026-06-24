@@ -10,17 +10,21 @@ SENTRY_DSN = os.getenv('SENTRY_DSN', '')
 SENTRY_RELEASE = os.getenv('SENTRY_RELEASE', 'unknown')  # set from git commit
 SENTRY_ENV = os.getenv('SENTRY_ENV', 'production')
 
+from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.celery import CeleryIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
+
 if SENTRY_DSN:
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         environment=SENTRY_ENV,
         release=SENTRY_RELEASE,
         integrations=[
-            sentry_sdk.integrations.django.DjangoIntegration(),
-            sentry_sdk.integrations.celery.CeleryIntegration(
+            DjangoIntegration(),
+            CeleryIntegration(
                 monitor_beat_tasks=True,
             ),
-            sentry_sdk.integrations.logging.LoggingIntegration(
+            LoggingIntegration(
                 level=logging.INFO,
                 event_level=logging.ERROR,
             ),
