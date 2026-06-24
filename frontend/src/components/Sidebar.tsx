@@ -118,7 +118,7 @@ export default function Sidebar({ isMobileOpen = false, onClose = () => {} }: Si
         </div>
 
         {/* Navigation */}
-        <nav className="flex flex-col gap-2">
+        <nav className="flex flex-col gap-2" aria-label="Main Navigation">
           {navItems.map((item) => {
             const active = location.pathname === item.path;
             const Icon = item.icon;
@@ -170,7 +170,10 @@ export default function Sidebar({ isMobileOpen = false, onClose = () => {} }: Si
         <div className="relative">
           <button 
             onClick={() => showExpanded && setShowOrgDropdown(!showOrgDropdown)}
-            className="flex items-center gap-4 p-2 rounded-xl hover:bg-white/5 transition-colors w-full text-left"
+            className="flex items-center gap-4 p-2 rounded-xl hover:bg-white/5 transition-colors w-full text-left focus-visible:ring-2 focus-visible:ring-accent-cyan outline-none"
+            aria-expanded={showOrgDropdown}
+            aria-haspopup="menu"
+            aria-label="User Workspace Menu"
           >
             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 border border-white/10 flex items-center justify-center text-sm font-bold shadow-inner text-white">
               {user?.username?.charAt(0).toUpperCase()}

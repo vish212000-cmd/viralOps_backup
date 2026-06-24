@@ -88,13 +88,16 @@ const LoadingFallback = () => (
   </div>
 );
 
+import { HelmetProvider } from 'react-helmet-async';
+
 function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
         <ToastProvider>
-          <Router>
-            <Suspense fallback={<LoadingFallback />}>
+          <HelmetProvider>
+            <Router>
+              <Suspense fallback={<LoadingFallback />}>
               <Routes>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<Login />} />
@@ -130,6 +133,7 @@ function App() {
               </Routes>
             </Suspense>
           </Router>
+          </HelmetProvider>
         </ToastProvider>
       </AuthProvider>
     </ErrorBoundary>

@@ -2,10 +2,66 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Favicon configurations -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="ViralOps is an AI-powered SaaS workspace that converts long-form videos, audio, transcripts, and articles into short-form viral assets like hooks, titles, captions, CTAs, hashtags, and scripts for TikTok, YouTube Shorts, and Instagram Reels." />
-    <title>ViralOps - AI Short-Form Social Asset Generator & SaaS Workspace</title>
+    
+    <!-- Open Graph / Social Tags -->
+    <meta property="og:title" content="ViralOps - AI Short-Form Social Asset Generator & SaaS Workspace" />
+    <meta property="og:description" content="Generate, manage, optimize and scale content workflows with AI-powered automation." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://viralops.com" />
+    <meta property="og:image" content="https://viralops.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ViralOps - AI Short-Form Social Asset Generator" />
+    <meta name="twitter:description" content="Generate, manage, optimize and scale content workflows with AI-powered automation." />
+    
+    <title>ViralOps - AI-Powered Viral Content Operations Platform</title>
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "ViralOps",
+      "operatingSystem": "Web",
+      "applicationCategory": "BusinessApplication",
+      "description": "Generate, manage, optimize and scale content workflows with AI-powered automation.",
+      "url": "https://viralops.com",
+      "publisher": {
+        "@type": "Organization",
+        "name": "ViralOps",
+        "logo": "https://viralops.com/logo.png"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "ViralOps",
+      "url": "https://viralops.com",
+      "logo": "https://viralops.com/logo.png",
+      "sameAs": [
+        "https://twitter.com/viralops",
+        "https://linkedin.com/company/viralops"
+      ]
+    }
+    </script>
+
+    <!-- Google Analytics (GA4) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=%VITE_GA_MEASUREMENT_ID%"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '%VITE_GA_MEASUREMENT_ID%');
+    </script>
   </head>
   <body>
     <div id="root"></div>

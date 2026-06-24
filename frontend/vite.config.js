@@ -14,4 +14,18 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/tests/setup.ts',
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react')) return 'react';
+            if (id.includes('framer-motion')) return 'framer';
+            if (id.includes('three')) return 'three';
+            return 'vendor';
+          }
+        }
+      }
+    }
+  }
 })
