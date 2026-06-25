@@ -135,80 +135,86 @@ class SourceInputViewSet(TenantScopedQuerysetMixin, viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        try:
-            project_id = self.kwargs.get('project_id')
-            project = get_object_or_404(Project, id=project_id, organization=self.get_organization())
-            org = project.organization
+        project_id = self.kwargs.get('project_id')
+        project = get_object_or_404(Project, id=project_id, organization=self.get_organization())
+        org = project.organization
 
             # Verify Billing generations limit before triggering ingestion
-            from billing.models import Subscription, SubscriptionPlan
-            from django.utils import timezone
-            from billing.views import get_or_create_default_plans
-            get_or_create_default_plans()
-            
-            subscription, created = Subscription.objects.get_or_create(
-                tenant=org,
-                user=self.request.user,
-                defaults={
-                    'plan': SubscriptionPlan.objects.filter(price_monthly=0).first() or SubscriptionPlan.objects.first(),
-                    'status': 'ACTIVE',
-                    'current_period_start': timezone.now(),
-                    'current_period_end': timezone.now() + timezone.timedelta(days=30)
-                }
-            )
-            if subscription.status != 'ACTIVE':
-                raise exceptions.ValidationError("Your subscription is inactive. Please update billing details.")
+        from billing.models import Subscription, SubscriptionPlan
+        from django.utils import timezone
+        from billing.views import get_or_create_default_plans
+        get_or_create_default_plans()
+        
+        subscription, created = Subscription.objects.get_or_create(
+            tenant=org,
+            user=self.request.user,
+            defaults={
+                'plan': SubscriptionPlan.objects.filter(price_monthly=0).first() or SubscriptionPlan.objects.first(),
+                'status': 'ACTIVE',
+                'current_period_start': timezone.now(),
+                'current_period_end': timezone.now() + timezone.timedelta(days=30)
+            }
+        )
+        if subscription.status != 'ACTIVE':
+            raise exceptions.ValidationError("Your subscription is inactive. Please update billing details.")
 
-            month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            current_gen_count = UsageEvent.objects.filter(
-                organization=org,
-                event_type='AI_GENERATION',
-                created_at__gte=month_start
-            ).aggregate(total=models.Sum('quantity'))['total'] or 0
+        month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        current_gen_count = UsageEvent.objects.filter(
+            organization=org,
+            event_type='AI_GENERATION',
+            created_at__gte=month_start
+        ).aggregate(total=models.Sum('quantity'))['total'] or 0
 
-            if current_gen_count >= subscription.plan.max_generations_per_month:
-                raise exceptions.ValidationError("Monthly AI generation limit exceeded. Please upgrade your plan.")
-            
-            # Enforce file upload size validation limits locally
-            uploaded_file = self.request.FILES.get('file')
-            file_size = 0
-            file_name = ''
-            if uploaded_file:
-                file_size = uploaded_file.size
-                file_name = uploaded_file.name
+        if current_gen_count >= subscription.plan.max_generations_per_month:
+            raise exceptions.ValidationError("Monthly AI generation limit exceeded. Please upgrade your plan.")
+        
+        # Enforce file upload size validation limits locally
+        uploaded_file = self.request.FILES.get('file')
+        file_size = 0
+        file_name = ''
+        if uploaded_file:
+            file_size = uploaded_file.size
+            file_name = uploaded_file.name
+            if file_size > 52428800:
+                raise exceptions.ValidationError({"file": "File size exceeds local 50MB limits."})
+        else:
+            file_size_data = self.request.data.get('file_size')
+            if file_size_data:
+                file_size = int(file_size_data)
                 if file_size > 52428800:
-                    raise exceptions.ValidationError({"file": "File size exceeds local 50MB limits."})
-            else:
-                file_size_data = self.request.data.get('file_size')
-                if file_size_data:
-                    file_size = int(file_size_data)
-                    if file_size > 52428800:
-                        raise exceptions.ValidationError({"file_size": "File size exceeds local 50MB limits."})
-                file_name = self.request.data.get('file_name', '')
+                    raise exceptions.ValidationError({"file_size": "File size exceeds local 50MB limits."})
+            file_name = self.request.data.get('file_name', '')
 
-            source_input = serializer.save(
-                project=project, 
-                status='PENDING',
-                file_size=file_size if file_size else None,
-                file_name=file_name if file_name else ''
-            )
-            
-            # Log Audit
-            AuditLog.objects.create(
-                organization=project.organization,
-                user=self.request.user,
-                action="SOURCE_SUBMIT",
-                details={"source_id": source_input.id, "type": source_input.type}
-            )
+        source_input = serializer.save(
+            project=project, 
+            status='PENDING',
+            file_size=file_size if file_size else None,
+            file_name=file_name if file_name else ''
+        )
+        
+        # Log Audit
+        AuditLog.objects.create(
+            organization=project.organization,
+            user=self.request.user,
+            action="SOURCE_SUBMIT",
+            details={"source_id": source_input.id, "type": source_input.type}
+        )
 
-            # Trigger Celery Ingestion Job
+        # Trigger Celery Ingestion Job
+        try:
             process_source_input.delay(source_input.id)
-        except exceptions.ValidationError as ve:
-            raise ve
         except Exception as e:
             import traceback
-            raise exceptions.ValidationError({"server_error": str(e), "traceback": traceback.format_exc()})
-
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to queue celery task for source {source_input.id}: {str(e)}\n{traceback.format_exc()}")
+            
+            source_input.status = 'FAILED'
+            source_input.error_message = f"Queueing failed: {str(e)}"
+            source_input.save(update_fields=['status', 'error_message'])
+            
+            project.status = 'FAILED'
+            project.save(update_fields=['status'])
     @decorators.action(detail=True, methods=['get'])
     def download(self, request, org_slug=None, project_id=None, pk=None):
         source_input = self.get_object()

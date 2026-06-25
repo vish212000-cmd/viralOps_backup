@@ -25,8 +25,7 @@ class TranscriptionError(Exception):
 def get_transcription_provider():
     """
     Determines the transcription provider based on configuration.
-    Returns: 'whisper', 'assemblyai'
-    NOTE: 'simulated' mode has been removed — real transcription required.
+    Returns: 'whisper_local', 'whisper', 'assemblyai'
     """
     pref = os.getenv('TRANSCRIPTION_PROVIDER', '').lower()
     openai_key = os.getenv('OPENAI_API_KEY')
@@ -36,6 +35,8 @@ def get_transcription_provider():
         return 'whisper'
     if pref == 'assemblyai' and assembly_key:
         return 'assemblyai'
+    if pref == 'whisper_local':
+        return 'whisper_local'
 
     # Fallback to whatever is configured
     if openai_key:
@@ -43,7 +44,7 @@ def get_transcription_provider():
     if assembly_key:
         return 'assemblyai'
 
-    return 'none'
+    return 'whisper_local'
 
 
 def _extract_youtube_id(url):
@@ -55,38 +56,179 @@ def _extract_youtube_id(url):
 def _extract_article_text(url):
     try:
         from bs4 import BeautifulSoup
+        logger.info(f"[_extract_article_text] Fetching article from {url}")
         response = requests.get(
             url,
-            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
-            timeout=15
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ViralOpsBot/1.0"},
+            timeout=20
         )
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
-        for elem in soup(["script", "style", "nav", "footer", "header", "aside", "form"]):
+        # Aggressively remove non-content elements
+        for elem in soup([
+            "script", "style", "nav", "footer", "header", "aside", "form",
+            "iframe", "noscript", "button", "svg", "path"
+        ]):
             elem.decompose()
-        text = soup.get_text()
+        
+        # Remove common ad, tracking, or comment divs
+        for div in soup.find_all(['div', 'section'], class_=lambda x: x and any(c in x.lower() for c in ['ad', 'comment', 'sidebar', 'promo', 'related', 'social'])):
+            div.decompose()
+            
+        text = soup.get_text(separator='\n')
         lines = (line.strip() for line in text.splitlines())
-        chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-        clean_text = "\n".join(chunk for chunk in chunks if chunk)
+        clean_text = "\n".join(line for line in lines if line)
+        logger.info(f"[_extract_article_text] Successfully extracted {len(clean_text)} chars from {url}")
         return clean_text
     except Exception as e:
-        logger.error(f"Article scraping failed for {url}: {e}")
+        logger.error(f"[_extract_article_text] Article scraping failed for {url}: {e}")
         return None
 
 
 def _extract_pdf_text(file_path):
+    import logging
+    logger = logging.getLogger(__name__)
+    text = ""
     try:
         import pypdf
         reader = pypdf.PdfReader(file_path)
-        text = ""
         for page in reader.pages:
             t = page.extract_text()
             if t:
                 text += t + "\n"
-        return text.strip()
     except Exception as e:
-        logger.error(f"PDF text extraction failed for {file_path}: {e}")
-        return None
+        logger.error(f"pypdf extraction failed for {file_path}: {e}")
+        
+    text = text.strip()
+    
+    # OCR Fallback if text is empty or meaningless
+    if not text or not any(c.isalnum() for c in text):
+        logger.info(f"pypdf returned no usable text. Attempting OCR fallback.")
+        import time
+        start_time = time.time()
+        fallback_text = ""
+        ocr_provider_used = "NONE"
+        
+        has_tesseract = False
+        try:
+            import pytesseract
+            import shutil
+            if shutil.which("tesseract") or os.path.exists(r"C:\Program Files\Tesseract-OCR\tesseract.exe") or os.path.exists(r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"):
+                has_tesseract = True
+        except ImportError:
+            pass
+            
+        has_poppler = False
+        try:
+            import shutil
+            if shutil.which("pdftoppm"):
+                has_poppler = True
+        except:
+            pass
+
+        openrouter_key = os.getenv('OPENROUTER_API_KEY')
+        has_openrouter = bool(openrouter_key)
+        
+        print(f"TESSERACT_READY = {'YES' if has_tesseract else 'NO'}")
+        print(f"POPPLER_READY = {'YES' if has_poppler else 'NO'}")
+        print(f"OPENROUTER_READY = {'YES' if has_openrouter else 'NO'}")
+        
+        if not has_tesseract and not has_openrouter:
+            logger.error("Both Tesseract and OpenRouter are unavailable for OCR.")
+            return None
+
+        # Priority 1: Local OCR
+        if has_tesseract:
+            try:
+                import fitz # use PyMuPDF since poppler might not be present
+                from PIL import Image
+                import io
+                import pytesseract
+                # If tesseract is not in PATH but exists in standard path, point it explicitly
+                import shutil
+                if not shutil.which("tesseract"):
+                    if os.path.exists(r"C:\Program Files\Tesseract-OCR\tesseract.exe"):
+                        pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+                    elif os.path.exists(r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"):
+                        pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"
+
+                doc = fitz.open(file_path)
+                for page in doc:
+                    pix = page.get_pixmap()
+                    img = Image.open(io.BytesIO(pix.tobytes("png")))
+                    page_text = pytesseract.image_to_string(img)
+                    fallback_text += page_text + "\n"
+                
+                if fallback_text.strip() and any(c.isalnum() for c in fallback_text):
+                    ocr_provider_used = "TESSERACT"
+            except Exception as e:
+                logger.error(f"Local OCR failed: {e}")
+                fallback_text = ""
+
+        # Priority 2: OpenRouter Vision
+        if not fallback_text.strip() and has_openrouter:
+            try:
+                import fitz
+                import base64
+                import requests
+                
+                doc = fitz.open(file_path)
+                url = "https://openrouter.ai/api/v1/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {openrouter_key}",
+                    "Content-Type": "application/json"
+                }
+                
+                for page in doc:
+                    pix = page.get_pixmap()
+                    img_data = pix.tobytes("png")
+                    b64_image = base64.b64encode(img_data).decode('utf-8')
+                    
+                    payload = {
+                        "model": "google/gemini-2.5-flash",
+                        "max_tokens": 4096,
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "text", 
+                                        "text": "Extract all text from this document accurately. Do not summarize or add markdown formatting, just return the raw text."
+                                    },
+                                    {
+                                        "type": "image_url", 
+                                        "image_url": {
+                                            "url": f"data:image/png;base64,{b64_image}"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                    
+                    resp = requests.post(url, headers=headers, json=payload, timeout=60)
+                    if resp.status_code == 200:
+                        page_text = resp.json()["choices"][0]["message"]["content"]
+                        fallback_text += page_text + "\n"
+                    else:
+                        logger.error(f"OpenRouter OCR failed for page: {resp.text}")
+                
+                if fallback_text.strip() and any(c.isalnum() for c in fallback_text):
+                    ocr_provider_used = "OPENROUTER"
+            except Exception as e:
+                logger.error(f"OpenRouter OCR failed: {e}")
+                
+        if fallback_text.strip() and any(c.isalnum() for c in fallback_text):
+            duration = round(time.time() - start_time, 2)
+            length = len(fallback_text.strip())
+            print(f"OCR_PROVIDER_USED = {ocr_provider_used}")
+            print(f"OCR_DURATION = {duration}s")
+            print(f"OCR_TEXT_LENGTH = {length}")
+            logger.info(f"OCR fallback succeeded using {ocr_provider_used}. Extracted {length} chars in {duration}s.")
+            return fallback_text.strip()
+        else:
+            logger.warning("OCR fallback returned empty text.")
+            return None
 
 
 def transcribe_source_input(source_input):
@@ -238,6 +380,8 @@ def transcribe_source_input(source_input):
         return _transcribe_whisper(file_path)
     elif provider == 'assemblyai':
         return _transcribe_assemblyai(file_path)
+    elif provider == 'whisper_local':
+        return _transcribe_whisper_local(file_path)
 
     raise TranscriptionError(f"Unknown transcription provider: {provider}")
 
@@ -266,6 +410,45 @@ def _normalize_text_source(text: str, title: str):
         })
     return text, normalized_text, segments, duration_seconds
 
+
+def _transcribe_whisper_local(file_path):
+    import whisper
+    import time
+    
+    logger.info(f"Loading local whisper model 'base' for {file_path}")
+    start_time = time.time()
+    try:
+        model = whisper.load_model("base")
+        logger.info(f"Loaded whisper model in {time.time() - start_time:.2f}s")
+        
+        logger.info(f"Starting local transcription for {file_path}")
+        start_time = time.time()
+        result = model.transcribe(file_path)
+        logger.info(f"Local transcription finished in {time.time() - start_time:.2f}s")
+    except Exception as e:
+        logger.error(f"Local whisper transcription failed: {e}")
+        raise TranscriptionError(f"Local whisper transcription failed: {e}")
+        
+    raw_text = result.get('text', '')
+    normalized_text = "\n".join([line.strip() for line in raw_text.splitlines() if line.strip()])
+    
+    raw_segments = result.get('segments', [])
+    segments = []
+    duration_seconds = 0.0
+    for s in raw_segments:
+        start = s.get('start', 0.0)
+        end = s.get('end', 0.0)
+        if end > duration_seconds:
+            duration_seconds = end
+            
+        segments.append({
+            "start": start,
+            "end": end,
+            "speaker": "Speaker 1",
+            "text": s.get('text', '').strip()
+        })
+        
+    return raw_text, normalized_text, segments, int(duration_seconds)
 
 def _transcribe_whisper(file_path):
     openai_key = os.getenv('OPENAI_API_KEY')

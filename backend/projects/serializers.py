@@ -121,13 +121,17 @@ class SourceInputSerializer(serializers.ModelSerializer):
             if not uploaded_file and not data.get('file_name'):
                 raise serializers.ValidationError({"file_name": "A file or file_name is required for video/audio sources."})
                 
-        elif stype in ['ARTICLE', 'TRANSCRIPT', 'SCRIPT']:
+        elif stype in ['ARTICLE', 'TRANSCRIPT', 'SCRIPT', 'RAW_TEXT']:
             text = data.get('text_content', '').strip()
             url = data.get('source_url', '').strip()
             if stype == 'ARTICLE' and url:
                 pass
             elif not text:
                 raise serializers.ValidationError({"text_content": "Text content cannot be empty for text-based sources."})
+            elif len(text) < 50:
+                raise serializers.ValidationError({"text_content": "Text content is too short. Minimum 50 characters required."})
+            elif len(text) > 200000:
+                raise serializers.ValidationError({"text_content": "Text content is too long. Maximum 200,000 characters allowed."})
                 
         elif stype == 'PDF':
             if not uploaded_file and not data.get('text_content', '').strip():

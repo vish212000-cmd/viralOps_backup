@@ -199,6 +199,8 @@ export default function Dashboard() {
         showToast(errors.file_size, 'error');
       } else if (errors?.file) {
         showToast(errors.file[0] || errors.file, 'error');
+      } else if (errors?.server_error) {
+        showToast(errors.server_error, 'error');
       } else {
         showToast('Failed to create project.', 'error');
       }

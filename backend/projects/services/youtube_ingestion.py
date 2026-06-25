@@ -18,6 +18,7 @@ import re
 import os
 import tempfile
 import requests
+from django.utils import timezone
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from django.utils import timezone
 
@@ -78,13 +79,17 @@ def _retrieve_via_transcript_api(video_id: str) -> tuple[str, str]:
     Returns (transcript_text, method_name).
     Raises on failure.
     """
-    from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+    from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound, VideoUnavailable
 
     logger.info(f"[YT Layer 1] Attempting youtube-transcript-api for video_id={video_id}")
     
     # Try English first, then any available language
-    transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-    
+    try:
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+    except VideoUnavailable as e:
+        logger.error(f"[YT Layer 1] Video is unavailable (private/deleted): {e}")
+        raise ValueError(f"Video {video_id} is unavailable, private, or age-restricted.") from e
+        
     transcript = None
     try:
         transcript = transcript_list.find_manually_created_transcript(['en', 'en-US', 'en-GB'])
@@ -339,7 +344,6 @@ def ingest_youtube_source(source_input) -> dict:
     """
     if os.getenv('E2E_MOCK') == '1':
         logger.info("E2E_MOCK is set. Returning mock YouTube transcript.")
-        from django.utils import timezone
         source_input.text_content = "This is a mock YouTube transcript for E2E testing. The user is uploading a video and we are extracting the transcript. This transcript contains several viral hooks and moments that the AI will detect."
         source_input.transcript_source = "youtube"
         source_input.transcript_length = len(source_input.text_content)
@@ -399,6 +403,21 @@ def ingest_youtube_source(source_input) -> dict:
         last_error = e
         logger.warning(f"[YouTubeIngestion] Layer 1 failed: {e}")
         _record_telemetry("Layer 1", "youtube-transcript-api", e)
+        if isinstance(e, ValueError) and "unavailable" in str(e).lower():
+            # Fast fail for private/deleted videos
+            raise TranscriptValidationError(
+                str(e),
+                diagnostics={
+                    "status": "FAIL",
+                    "length": 0,
+                    "source": "youtube",
+                    "retrieval_method": None,
+                    "retrieval_timestamp": None,
+                    "transcript_preview": "",
+                    "failures": [str(e)],
+                    "telemetry": fallback_telemetry
+                }
+            )
 
     # --- Layer 2 & 3 ---
     if not transcript_text:
