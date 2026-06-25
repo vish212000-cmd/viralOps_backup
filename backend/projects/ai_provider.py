@@ -124,7 +124,7 @@ class GeminiProvider(AIProvider):
 
     def _call_gemini(self, prompt: str) -> str:
         """Make a Gemini API call and return raw text response."""
-        model = self._genai.GenerativeModel('gemini-1.5-flash')
+        model = self._genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content(prompt)
         text = response.text.strip()
         # Strip markdown code fences
