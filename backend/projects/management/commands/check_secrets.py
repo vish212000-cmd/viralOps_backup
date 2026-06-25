@@ -91,8 +91,8 @@ class Command(BaseCommand):
         try:
             import google.generativeai as genai
             genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            model.generate_content('test')
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            response = model.generate_content("Hello, this is a test. Reply with 'OK'.")
             self.stdout.write(self.style.SUCCESS('  [OK] Gemini AI — API connection successful'))
         except Exception as e:
             self.stdout.write(self.style.ERROR(f'  [FAIL] Gemini AI — {str(e)[:60]}'))
