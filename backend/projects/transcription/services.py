@@ -103,71 +103,132 @@ def _extract_pdf_text(file_path):
     
     # OCR Fallback if text is empty or meaningless
     if not text or not any(c.isalnum() for c in text):
-        logger.info(f"pypdf returned no usable text. Attempting OCR fallback via pytesseract.")
+        logger.info(f"pypdf returned no usable text. Attempting OCR fallback.")
+        import time
+        start_time = time.time()
+        fallback_text = ""
+        ocr_provider_used = "NONE"
+        
+        has_tesseract = False
         try:
-            from pdf2image import convert_from_path
             import pytesseract
+            import shutil
+            if shutil.which("tesseract") or os.path.exists(r"C:\Program Files\Tesseract-OCR\tesseract.exe") or os.path.exists(r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"):
+                has_tesseract = True
+        except ImportError:
+            pass
             
-            images = convert_from_path(file_path)
-            ocr_text = ""
-            for img in images:
-                ocr_text += pytesseract.image_to_string(img) + "\n"
-                
-            if ocr_text.strip() and any(c.isalnum() for c in ocr_text):
-                logger.info("OCR fallback via pytesseract succeeded.")
-                return ocr_text.strip()
-            else:
-                logger.warning("pytesseract OCR returned empty text. Attempting Gemini fallback.")
-        except Exception as e:
-            logger.error(f"pytesseract OCR failed: {e}. Attempting Gemini fallback.")
-            
-        logger.info(f"Attempting OCR fallback via Gemini.")
+        has_poppler = False
         try:
-            import google.generativeai as genai
-            import os
-            import time
-            
-            gemini_key = os.getenv('GEMINI_API_KEY')
-            if not gemini_key:
-                logger.warning("GEMINI_API_KEY is not configured. Skipping OCR fallback.")
-                return None
-                
-            genai.configure(api_key=gemini_key)
-            
-            # Upload the file to Gemini
-            uploaded_file = genai.upload_file(path=file_path)
-            
-            # Wait for file processing if needed
-            while uploaded_file.state.name == "PROCESSING":
-                time.sleep(2)
-                uploaded_file = genai.get_file(uploaded_file.name)
-                
-            if uploaded_file.state.name == "FAILED":
-                raise Exception("Gemini file processing failed.")
-                
-            model = genai.GenerativeModel('gemini-2.5-flash')
-            response = model.generate_content([
-                "Extract all text from this document accurately. Do not summarize or add markdown formatting, just return the raw text.",
-                uploaded_file
-            ])
-            
-            # Cleanup
+            import shutil
+            if shutil.which("pdftoppm"):
+                has_poppler = True
+        except:
+            pass
+
+        openrouter_key = os.getenv('OPENROUTER_API_KEY')
+        has_openrouter = bool(openrouter_key)
+        
+        print(f"TESSERACT_READY = {'YES' if has_tesseract else 'NO'}")
+        print(f"POPPLER_READY = {'YES' if has_poppler else 'NO'}")
+        print(f"OPENROUTER_READY = {'YES' if has_openrouter else 'NO'}")
+        
+        if not has_tesseract and not has_openrouter:
+            logger.error("Both Tesseract and OpenRouter are unavailable for OCR.")
+            return None
+
+        # Priority 1: Local OCR
+        if has_tesseract:
             try:
-                genai.delete_file(uploaded_file.name)
+                import fitz # use PyMuPDF since poppler might not be present
+                from PIL import Image
+                import io
+                import pytesseract
+                # If tesseract is not in PATH but exists in standard path, point it explicitly
+                import shutil
+                if not shutil.which("tesseract"):
+                    if os.path.exists(r"C:\Program Files\Tesseract-OCR\tesseract.exe"):
+                        pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+                    elif os.path.exists(r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"):
+                        pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"
+
+                doc = fitz.open(file_path)
+                for page in doc:
+                    pix = page.get_pixmap()
+                    img = Image.open(io.BytesIO(pix.tobytes("png")))
+                    page_text = pytesseract.image_to_string(img)
+                    fallback_text += page_text + "\n"
+                
+                if fallback_text.strip() and any(c.isalnum() for c in fallback_text):
+                    ocr_provider_used = "TESSERACT"
             except Exception as e:
-                logger.warning(f"Failed to delete gemini file {uploaded_file.name}: {e}")
+                logger.error(f"Local OCR failed: {e}")
+                fallback_text = ""
+
+        # Priority 2: OpenRouter Vision
+        if not fallback_text.strip() and has_openrouter:
+            try:
+                import fitz
+                import base64
+                import requests
                 
-            fallback_text = response.text.strip()
-            if fallback_text and any(c.isalnum() for c in fallback_text):
-                logger.info(f"OCR fallback succeeded. Extracted {len(fallback_text)} characters.")
-                return fallback_text
-            else:
-                logger.warning("OCR fallback returned empty text.")
+                doc = fitz.open(file_path)
+                url = "https://openrouter.ai/api/v1/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {openrouter_key}",
+                    "Content-Type": "application/json"
+                }
                 
-        except Exception as e:
-            logger.error(f"OCR fallback via Gemini failed for {file_path}: {e}")
-            
-    return text if text else None
+                for page in doc:
+                    pix = page.get_pixmap()
+                    img_data = pix.tobytes("png")
+                    b64_image = base64.b64encode(img_data).decode('utf-8')
+                    
+                    payload = {
+                        "model": "google/gemini-2.5-flash",
+                        "max_tokens": 4096,
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "text", 
+                                        "text": "Extract all text from this document accurately. Do not summarize or add markdown formatting, just return the raw text."
+                                    },
+                                    {
+                                        "type": "image_url", 
+                                        "image_url": {
+                                            "url": f"data:image/png;base64,{b64_image}"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                    
+                    resp = requests.post(url, headers=headers, json=payload, timeout=60)
+                    if resp.status_code == 200:
+                        page_text = resp.json()["choices"][0]["message"]["content"]
+                        fallback_text += page_text + "\n"
+                    else:
+                        logger.error(f"OpenRouter OCR failed for page: {resp.text}")
+                
+                if fallback_text.strip() and any(c.isalnum() for c in fallback_text):
+                    ocr_provider_used = "OPENROUTER"
+            except Exception as e:
+                logger.error(f"OpenRouter OCR failed: {e}")
+                
+        if fallback_text.strip() and any(c.isalnum() for c in fallback_text):
+            duration = round(time.time() - start_time, 2)
+            length = len(fallback_text.strip())
+            print(f"OCR_PROVIDER_USED = {ocr_provider_used}")
+            print(f"OCR_DURATION = {duration}s")
+            print(f"OCR_TEXT_LENGTH = {length}")
+            logger.info(f"OCR fallback succeeded using {ocr_provider_used}. Extracted {length} chars in {duration}s.")
+            return fallback_text.strip()
+        else:
+            logger.warning("OCR fallback returned empty text.")
+            return None
 
 
 def transcribe_source_input(source_input):

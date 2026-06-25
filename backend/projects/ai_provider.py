@@ -124,7 +124,7 @@ class GeminiProvider(AIProvider):
 
     def _call_gemini(self, prompt: str) -> str:
         """Make a Gemini API call and return raw text response."""
-        model = self._genai.GenerativeModel('gemini-2.5-flash')
+        model = self._genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
         text = response.text.strip()
         # Strip markdown code fences
@@ -910,10 +910,8 @@ class OpenRouterProvider(AIProvider):
             raise RuntimeError("OpenRouterProvider requires OPENROUTER_API_KEY.")
             
         self.models = [
-            "deepseek/deepseek-chat-v3-0324:free",
-            "google/gemma-3-27b-it:free",
-            "qwen/qwen-2.5-72b-instruct:free",
-            "meta-llama/llama-3.3-70b-instruct:free"
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "nousresearch/hermes-3-llama-3.1-405b:free"
         ]
         logger.info(f"[OpenRouterProvider] Initialized with models: {self.models}")
 
@@ -973,30 +971,64 @@ class OpenRouterProvider(AIProvider):
     ) -> dict:
         from projects.services.transcript_validator import TranscriptValidationError
 
-        # YouTube gate — must have PASS diagnostics
         if source_type == 'YOUTUBE':
             if transcript_diagnostics is None:
                 raise TranscriptValidationError(
-                    "Gemini generation blocked: transcript_diagnostics not provided for YOUTUBE source.",
+                    "OpenRouter generation blocked: transcript_diagnostics missing.",
                     diagnostics={"status": "FAIL", "failures": ["transcript_diagnostics missing"]}
                 )
             if transcript_diagnostics.get("status") != "PASS":
                 failures = transcript_diagnostics.get("failures", ["Unknown validation failure"])
                 raise TranscriptValidationError(
-                    f"Gemini generation blocked: transcript validation status is "
-                    f"'{transcript_diagnostics.get('status')}'. Failures: {'; '.join(failures)}",
+                    f"OpenRouter generation blocked: validation status is '{transcript_diagnostics.get('status')}'.",
                     diagnostics=transcript_diagnostics
                 )
-            logger.info(
-                f"[OpenRouterProvider] YouTube gate PASS — "
-                f"length={transcript_diagnostics.get('length')}, "
-                f"method={transcript_diagnostics.get('retrieval_method')}"
-            )
 
-        # Build memory/brand voice snippet
         memory_prompt = ""
         if memory_settings:
-        
+            def _get(key, fallback):
+                val = memory_settings.get(key)
+                if isinstance(val, dict):
+                    return val.get(list(val.keys())[0], fallback)
+                return val or fallback
+            memory_prompt = f"Tone of Voice: {_get('BRAND_TONE', 'Professional')}\nStyle Guide: {_get('STYLE_GUIDE', 'Clear')}"
+
+        prompt = f"""
+You are an expert social media copywriter and growth marketer.
+Analyze the following long-form content text and generate structured short-form social-ready assets.
+Base your output STRICTLY on the provided content. Do not invent topics not present in the text.
+
+Content Title: {title}
+Source Type: {source_type}
+
+{memory_prompt}
+
+Content text to analyze:
+{content_text[:8000]}
+
+You MUST return a JSON object with the exact keys:
+1. "hooks": list of 3 high-engaging hook variations for video openers.
+2. "titles": list of 3 clickable video title variations.
+3. "captions": list of 3 caption options (shorts, reels, tiktok formats).
+4. "ctas": list of 3 call-to-action options.
+5. "hashtags": list of 8 trending and relevant hashtags.
+6. "thumbnail_copy": list of 3 short texts for video thumbnails (max 4 words each).
+7. "scripts": list of 2 short video scripts (under 60 seconds each).
+
+Return only valid JSON. Do not include markdown code blocks.
+"""
+        text = self._call_openrouter(prompt)
+        try:
+            result = json.loads(text)
+            assert isinstance(result, dict), "OpenRouter API response must be a JSON dictionary"
+            assert len(result.keys()) > 0, "OpenRouter API response dictionary cannot be empty"
+        except (json.decoder.JSONDecodeError, AssertionError) as e:
+            logger.error(f"[OpenRouterProvider] generate_social_assets JSON parsing failed: {e}")
+            raise RuntimeError(f"OpenRouter API returned invalid JSON format: {str(e)}")
+            
+        logger.info(f"[OpenRouterProvider] Generated social assets for '{title[:50]}'")
+        return result
+
     def generate_social_assets_batch(
         self,
         title: str,
@@ -1011,18 +1043,79 @@ class OpenRouterProvider(AIProvider):
         if source_type == 'YOUTUBE':
             if transcript_diagnostics is None:
                 raise TranscriptValidationError(
-                    "Gemini batch generation blocked: transcript_diagnostics missing.",
+                    "OpenRouter batch generation blocked: transcript_diagnostics missing.",
                     diagnostics={"status": "FAIL", "failures": ["transcript_diagnostics missing"]}
                 )
             if transcript_diagnostics.get("status") != "PASS":
                 failures = transcript_diagnostics.get("failures", ["Unknown validation failure"])
                 raise TranscriptValidationError(
-                    f"Gemini batch generation blocked: validation status is '{transcript_diagnostics.get('status')}'.",
+                    f"OpenRouter batch generation blocked: validation status is '{transcript_diagnostics.get('status')}'.",
                     diagnostics=transcript_diagnostics
                 )
 
         memory_prompt = ""
         if memory_settings:
+            def _get(key, fallback):
+                val = memory_settings.get(key)
+                if isinstance(val, dict):
+                    return val.get(list(val.keys())[0], fallback)
+                return val or fallback
+            memory_prompt = f"Tone of Voice: {_get('BRAND_TONE', 'Professional')}\nStyle Guide: {_get('STYLE_GUIDE', 'Clear')}"
+
+        moments_context = ""
+        for m in moments:
+            m_id = m.get("id")
+            m_title = m.get("title", "Unknown")
+            m_text = str(m.get("content_text", ""))[:2000]
+            moments_context += f"--- MOMENT ID: {m_id} ---\nMoment Title: {m_title}\nMoment Text: {m_text}\n\n"
+
+        prompt = f"""
+You are an expert social media copywriter and growth marketer.
+Analyze the following MULTIPLE moments and generate a structured asset pack FOR EACH MOMENT in ONE SINGLE RESPONSE.
+Base your output STRICTLY on the provided content.
+
+Project Title: {title}
+Source Type: {source_type}
+{memory_prompt}
+
+{moments_context}
+
+You MUST return a JSON OBJECT where the keys are the EXACT MOMENT IDs provided above (as strings).
+For each Moment ID, provide an object with the exact keys:
+"hooks": list of 3 high-engaging hook variations for video openers.
+"titles": list of 3 clickable video title variations.
+"captions": list of 3 caption options (shorts, reels, tiktok formats).
+"ctas": list of 3 call-to-action options.
+"hashtags": list of 8 trending and relevant hashtags.
+"thumbnail_copy": list of 3 short texts for video thumbnails (max 4 words each).
+"scripts": list of 2 short video scripts (under 60 seconds each).
+
+Return only valid JSON matching this structure:
+{{
+  "moment_id_1": {{ "hooks": [...], "titles": [...], ... }},
+  "moment_id_2": {{ "hooks": [...], "titles": [...], ... }}
+}}
+Do not include markdown code blocks.
+"""
+        text = self._call_openrouter(prompt)
+        try:
+            result = json.loads(text)
+            assert isinstance(result, dict), "OpenRouter API response must be a JSON dictionary"
+            assert len(result.keys()) > 0, "OpenRouter API response dictionary cannot be empty"
+            normalized = {}
+            for k, v in result.items():
+                numeric_k = "".join(filter(str.isdigit, k))
+                if numeric_k:
+                    normalized[numeric_k] = v
+                else:
+                    normalized[k] = v
+            result = normalized
+        except Exception as e:
+            logger.error(f"[OpenRouterProvider] Batch generation JSON parsing failed: {e}")
+            raise
+
+        logger.info(f"[OpenRouterProvider] Batch generated social assets for {len(moments)} moments")
+        return result
         
     def run_content_intelligence(self, project_id: int, transcript_text: str) -> dict:
         if not transcript_text or len(transcript_text) < 100:

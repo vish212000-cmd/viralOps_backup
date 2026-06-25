@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from './design/Button';
 import { cn } from '../utils/cn';
 import { 
-  Sparkles, LayoutDashboard, Video, Palette, BarChart2, Settings, ChevronRight, X, CreditCard
+  Sparkles, LayoutDashboard, Video, Palette, BarChart2, Settings, ChevronRight, X, CreditCard, User
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -47,6 +47,7 @@ export default function Sidebar({ isMobileOpen = false, onClose = () => {} }: Si
     { name: 'Brand Kit', path: '/brand-kit', icon: Palette },
     { name: 'Performance', path: '/performance', icon: BarChart2 },
     { name: 'Billing', path: '/billing', icon: CreditCard },
+    { name: 'Profile', path: '/profile', icon: User },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
