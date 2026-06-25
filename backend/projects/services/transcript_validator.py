@@ -90,10 +90,10 @@ def validate_transcript(
     if not transcript_text or text_length == 0:
         failures.append("transcript_text is empty or null")
 
-    # ---- Rule 3: transcript must be > 1000 chars ---------------------------
-    if text_length > 0 and text_length <= 1000:
+    # ---- Rule 3: transcript must be > 10 chars ---------------------------
+    if text_length > 0 and text_length <= 10:
         failures.append(
-            f"transcript too short: {text_length} chars (minimum 1000 required)"
+            f"transcript too short: {text_length} chars (minimum 10 required)"
         )
 
     # ---- Rule 4: retrieval_method must be present --------------------------

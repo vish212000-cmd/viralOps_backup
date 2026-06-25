@@ -41,7 +41,8 @@ const ProjectDetails = lazyImportWithRecovery(() => import('./pages/ProjectDetai
 const MomentsWorkspace = lazyImportWithRecovery(() => import('./pages/MomentsWorkspace'), 'MomentsWorkspace');
 const BrandKit = lazyImportWithRecovery(() => import('./pages/BrandKit'), 'BrandKit');
 const Performance = lazyImportWithRecovery(() => import('./pages/Performance'), 'Performance');
-const Settings = lazyImportWithRecovery(() => import('./pages/Settings'), 'Settings'); 
+const Settings = lazyImportWithRecovery(() => import('./pages/Settings'), 'Settings');
+const Profile = lazyImportWithRecovery(() => import('./pages/Profile'), 'Profile'); 
 const Billing = lazyImportWithRecovery(() => import('./pages/Billing'), 'Billing');
 const MyContent = lazyImportWithRecovery(() => import('./pages/MyContent'), 'MyContent'); 
 const AdminDashboard = lazyImportWithRecovery(() => import('./pages/AdminDashboard'), 'AdminDashboard');
@@ -128,6 +129,7 @@ function App() {
                   <Route path="/performance" element={<Performance />} />
                   <Route path="/billing" element={<Billing />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/profile" element={<Profile />} />
                   <Route path="/admin" element={<AdminDashboard />} />
                   <Route path="/projects/:projectId" element={<ProjectDetails />} />
                   <Route path="/projects/:projectId/moments" element={<MomentsWorkspace />} />
