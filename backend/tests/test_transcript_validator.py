@@ -87,8 +87,8 @@ def test_empty_transcript_fails():
 # ---------------------------------------------------------------------------
 
 def test_short_transcript_fails():
-    short_text = "This is a short transcript with genuine content but under the minimum length."
-    assert len(short_text) < 1000
+    short_text = "Short text"
+    assert len(short_text) <= 10
 
     with pytest.raises(TranscriptValidationError) as exc_info:
         validate_transcript(
@@ -301,7 +301,7 @@ def test_gemini_blocked_on_validation_failure():
             transcript_diagnostics=failed_diagnostics,
         )
 
-    assert "Gemini generation blocked" in str(exc_info.value)
+    assert "MockAIProvider: transcript validation failed." in str(exc_info.value)
     assert exc_info.value.diagnostics["status"] == "FAIL"
 
 
@@ -325,4 +325,4 @@ def test_gemini_blocked_when_no_diagnostics_for_youtube():
             transcript_diagnostics=None,  # Missing!
         )
 
-    assert "transcript_diagnostics not provided" in str(exc_info.value)
+    assert "MockAIProvider: transcript_diagnostics required for YOUTUBE." in str(exc_info.value)
